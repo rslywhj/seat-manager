@@ -25,19 +25,25 @@
 ## 📸 功能截图
 
 ### Canvas 可视化布局
+![Canvas 可视化布局](./docs/assets/screenshots/canvas-overview.png)
+
 - 自由拖拽区域位置
 - 调整区域大小
 - 实时显示工位分布
 
-### 工位编辑器
+### 区域工位网格
+![区域工位网格](./docs/assets/screenshots/zone-seat-grid.png)
+
+- 展示区域内全部工位
+- 区分已占用、预留和空闲状态
+- 点击工位查看详情
+
+### 工位详情
+![工位详情](./docs/assets/screenshots/seat-details.png)
+
 - 支持清空工位编号
 - 显示工位号或"未分配"
 - 完整的人员信息管理
-
-### 工位分布网格
-- 可视化显示所有工位
-- 已占用/空闲状态一目了然
-- 点击工位快速编辑
 
 ## 🚀 快速开始
 
