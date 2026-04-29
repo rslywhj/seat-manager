@@ -1,8 +1,8 @@
 # Dependencies
 node_modules/
 npm-debug.log
-package-lock.json
 yarn.lock
+pnpm-lock.yaml
 
 # Environment
 .env
@@ -10,6 +10,7 @@ yarn.lock
 .env.*.local
 
 # IDE
+.claude/
 .vscode/
 .idea/
 *.swp
@@ -36,7 +37,6 @@ coverage/
 
 # Testing
 .jest
-jest.config.js
 
 # Build
 dist/
@@ -66,3 +66,5 @@ desktop.ini
 # Project specific
 floor-data.json
 floor-data.backup.json
+uploads/
+/nul

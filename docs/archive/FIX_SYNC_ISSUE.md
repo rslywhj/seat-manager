@@ -52,7 +52,7 @@ if (USE_API) {
 
 在浏览器中打开：
 ```
-debug-tool.html
+../../tools/debug-tool.html
 ```
 
 ### 2. 配置 API 地址

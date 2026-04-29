@@ -164,9 +164,9 @@ db.dropDatabase()
 
 ## 🎓 学习资源
 
-- [API 文档](./README.md#-api-接口)
+- [API 文档](../README.md#-api-接口)
 - [迁移指南](./MIGRATION.md)
-- [完整文档](./README.md)
+- [完整文档](../README.md)
 
 ---
 
@@ -183,7 +183,7 @@ db.dropDatabase()
 
 - 查看控制台错误信息（F12）
 - 检查 [MIGRATION.md](./MIGRATION.md) 的故障排查部分
-- 查看 [README.md](./README.md) 获取完整文档
+- 查看 [README.md](../README.md) 获取完整文档
 
 ---
 

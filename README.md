@@ -101,7 +101,7 @@ node scripts/migrate.js floor-data.json
 
 ### 3. 启动服务并验证
 
-详细迁移指南请参阅 [MIGRATION.md](./MIGRATION.md)
+详细迁移指南请参阅 [docs/MIGRATION.md](./docs/MIGRATION.md)
 
 ## 🗄️ 数据模型
 
@@ -245,8 +245,12 @@ set_manager/
 ├── .env.example                  # 环境变量模板
 ├── docker-compose.yml            # Docker Compose 配置
 ├── Dockerfile                    # Docker 镜像
-├── MIGRATION.md                  # 迁移指南
 ├── README.md                     # 本文件
+├── docs/                         # 项目文档
+│   ├── MIGRATION.md              # 迁移指南
+│   ├── QUICKSTART.md             # 快速启动
+│   └── archive/                  # 历史调试/修复记录
+├── tools/                        # 调试和修复工具
 ├── server/                       # 后端源码
 │   ├── app.js                   # Express 应用入口
 │   ├── config/
