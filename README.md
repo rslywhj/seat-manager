@@ -1,6 +1,6 @@
-# 🏢 D座8层 数字孪生工位管理系统 v2.0
+# 🏢 工位与楼层可视化管理系统 v2.0
 
-一个强大的工位管理系统，支持可视化布局、动态编号、MongoDB后端存储和可选工位编号功能。
+一个通用的工位与楼层管理系统，支持可视化布局、区域划分、动态编号、人员信息维护、MongoDB 后端存储和可选工位编号功能。适用于办公室、园区、楼宇、实验室、教室等需要管理座位或工位的场景。
 
 ## ✨ 核心特性
 
@@ -109,8 +109,8 @@ node scripts/migrate.js floor-data.json
 
 ```javascript
 {
-  id: "floor_d8",
-  name: "D座8层",
+  id: "floor_demo",
+  name: "示例楼层",
   canvasWidth: 1200,
   canvasHeight: 800
 }
@@ -120,7 +120,7 @@ node scripts/migrate.js floor-data.json
 
 ```javascript
 {
-  floorId: "floor_d8",
+  floorId: "floor_demo",
   name: "区域A",
   code: "ZHA",
   x: 100,
@@ -139,7 +139,7 @@ node scripts/migrate.js floor-data.json
 
 ```javascript
 {
-  floorId: "floor_d8",
+  floorId: "floor_demo",
   zoneId: ObjectId,
   seatNo: "001" | null,  // ⭐ 可选工位编号
   globalIdx: 1,
@@ -201,10 +201,10 @@ npm test
 curl http://localhost:3000/health
 
 # 获取楼层数据
-curl http://localhost:3000/api/floors/floor_d8
+curl http://localhost:3000/api/floors/floor_demo
 
 # 清空工位编号
-curl -X PATCH http://localhost:3000/api/floors/floor_d8/seats/507f1f77bcf86cd799439011/clear-number
+curl -X PATCH http://localhost:3000/api/floors/floor_demo/seats/507f1f77bcf86cd799439011/clear-number
 ```
 
 ## 🐳 Docker 部署
@@ -279,7 +279,7 @@ set_manager/
 
 ```javascript
 const API_BASE = 'http://localhost:3000/api';  // API 地址
-const FLOOR_ID = 'floor_d8';                   // 楼层 ID
+const FLOOR_ID = 'floor_demo';                 // 楼层 ID，可替换为任意楼层
 const USE_API = true;                           // 是否使用 API（false 为纯本地模式）
 ```
 
@@ -332,10 +332,10 @@ CORS_ORIGIN=*                                   # CORS 配置
 
 ```bash
 # 清空工位编号
-curl -X PATCH http://localhost:3000/api/floors/floor_d8/seats/:seatId/clear-number
+curl -X PATCH http://localhost:3000/api/floors/floor_demo/seats/:seatId/clear-number
 
 # 更新工位（设置 seatNo 为 null）
-curl -X PUT http://localhost:3000/api/floors/floor_d8/seats/:seatId \
+curl -X PUT http://localhost:3000/api/floors/floor_demo/seats/:seatId \
   -H "Content-Type: application/json" \
   -d '{"seatNo": null}'
 ```
