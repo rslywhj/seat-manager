@@ -45,6 +45,20 @@
 - 显示工位号或"未分配"
 - 完整的人员信息管理
 
+### 管理端总览
+![管理端总览](./docs/assets/screenshots/admin-overview.png)
+
+- `admin.html` 提供楼层配置、区域管理、工位编辑和数据导入导出
+- 支持拖拽创建区域、移动区域、调整区域大小
+- 左侧控制台展示统计、操作入口和区域列表
+
+### 管理端区域配置
+![管理端区域配置](./docs/assets/screenshots/admin-zone-config.png)
+
+- 配置区域名称、编码、颜色、类型和工位布局
+- 支持座位区域和功能区域
+- 支持区域图片、起始编号和重建工位编号
+
 ## 🚀 快速开始
 
 ### 安装依赖
@@ -90,6 +104,10 @@ npm start
 ### 打开前端
 
 在浏览器中打开 `index.html`
+
+### 打开管理端
+
+在浏览器中打开 `admin.html`。管理端用于维护楼层、区域、工位和人员信息；展示端 `index.html` 适合只读查看和查询。
 
 ## 📊 数据迁移
 
@@ -247,6 +265,7 @@ docker run -d \
 ```
 set_manager/
 ├── index.html                    # 前端单页应用
+├── admin.html                    # 管理端页面
 ├── package.json                  # 项目依赖
 ├── .env.example                  # 环境变量模板
 ├── docker-compose.yml            # Docker Compose 配置
@@ -438,13 +457,3 @@ MIT License
 3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
 4. 推送到分支 (`git push origin feature/AmazingFeature`)
 5. 开启 Pull Request
-
-## 📞 联系方式
-
-- 项目维护：Floor Management Team
-- 版本：v2.0.0
-- 更新日期：2026-01-28
-
----
-
-**🎉 感谢使用工位管理系统！**
