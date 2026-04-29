@@ -1,0 +1,4138 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>D座8层 数字孪生工位管理系统</title>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.socket.io/4.7.0/socket.io.min.js"></script>
+  <style>
+    :root{
+      --bg:#0b1220;
+      --panel:#111a2e;
+      --panel2:#0f1730;
+      --line:#223056;
+      --text:#e8eefc;
+      --muted:#9fb0d6;
+      --ok:#22c55e;
+      --warn:#f59e0b;
+      --bad:#ef4444;
+      --chip:#1b2a55;
+      --primary:#6366f1;
+    }
+    *{box-sizing:border-box}
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+    }
+    body{
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "PingFang SC", "Microsoft YaHei", Arial;
+      background: radial-gradient(1200px 600px at 20% 0%, #16244a, var(--bg));
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+    }
+    header{
+      padding:16px 18px;
+      border-bottom:1px solid rgba(255,255,255,.06);
+      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,0));
+      backdrop-filter: blur(10px);
+      z-index: 5;
+      flex-shrink: 0;
+    }
+    .row{display:flex; gap:12px; align-items:center; flex-wrap:wrap}
+    h1{font-size:16px; margin:0; letter-spacing:.2px}
+    .hint{color:var(--muted); font-size:12px}
+
+    .main {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+      gap: 0;
+    }
+
+    /* Left Sidebar */
+    .sidebar-left {
+      width: 280px;
+      border-right: 1px solid rgba(255,255,255,.06);
+      background: rgba(0,0,0,.15);
+      overflow-y: auto;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .sidebar-left-hd {
+      padding: 12px;
+      border-bottom: 1px solid rgba(255,255,255,.06);
+      font-weight: 700;
+      font-size: 14px;
+    }
+
+    .sidebar-left-bd {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px;
+    }
+
+    /* Canvas Area */
+    .canvas-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .canvas-toolbar {
+      padding: 12px;
+      border-bottom: 1px solid rgba(255,255,255,.06);
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .canvas-container {
+      flex: 1;
+      overflow: auto;
+      background: linear-gradient(135deg, rgba(20,40,80,.4) 0%, rgba(30,60,100,.2) 100%);
+      position: relative;
+    }
+
+    #canvas {
+      display: block;
+      background: #1a2332;
+      cursor: default;
+      margin: 20px;
+    }
+
+    /* Right Sidebar */
+    .sidebar-right {
+      width: 320px;
+      border-left: 1px solid rgba(255,255,255,.06);
+      background: rgba(0,0,0,.15);
+      overflow-y: auto;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .sidebar-right-hd {
+      padding: 12px;
+      border-bottom: 1px solid rgba(255,255,255,.06);
+      font-weight: 700;
+      font-size: 14px;
+    }
+
+    .sidebar-right-bd {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px;
+    }
+
+    /* Controls */
+    .btn{
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.06);
+      color: var(--text);
+      padding:8px 10px;
+      border-radius: 10px;
+      cursor:pointer;
+      font-size:12px;
+    }
+    .btn:hover{background: rgba(255,255,255,.10)}
+    .btn.primary{border-color: rgba(99,102,241,.35); background: rgba(99,102,241,.12)}
+    .btn.primary:hover{background: rgba(99,102,241,.18)}
+    .btn.danger{border-color: rgba(239,68,68,.35); background: rgba(239,68,68,.10)}
+    .btn.danger:hover{background: rgba(239,68,68,.15)}
+    .btn:disabled{opacity:.5; cursor:not-allowed}
+
+    input, select, textarea{
+      width:100%;
+      padding:9px 10px;
+      border-radius: 10px;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(0,0,0,.22);
+      color: var(--text);
+      outline:none;
+      font-family: inherit;
+      font-size: 12px;
+    }
+    input:focus, select:focus, textarea:focus {
+      border-color: rgba(99,102,241,.35);
+    }
+
+    /* Select dropdown styling */
+    select option {
+      background: #1a2540;
+      color: #e8eefc;
+      padding: 8px;
+    }
+    select option:hover {
+      background: #2a3550;
+    }
+    select optgroup {
+      background: #0f1730;
+      color: #6366f1;
+      font-weight: 700;
+      font-size: 12px;
+    }
+
+    textarea{min-height: 70px; resize: vertical}
+    label{font-size:12px; color: var(--muted); display: block; margin-bottom: 4px}
+
+    .grid2{display:grid; grid-template-columns: 1fr 1fr; gap:10px}
+    .grid3{display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px}
+    .mt10{margin-top:10px}
+    .mb10{margin-bottom:10px}
+
+    .zones-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .zone-item {
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,.10);
+      background: rgba(0,0,0,.18);
+      cursor: pointer;
+      font-size: 12px;
+      user-select: none;
+    }
+
+    .zone-item:hover {
+      background: rgba(0,0,0,.25);
+    }
+
+    .zone-item.selected {
+      border-color: rgba(99,102,241,.55);
+      background: rgba(99,102,241,.14);
+    }
+
+    .zone-item-name {
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .zone-item-info {
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .kpi {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .kpi-box {
+      background: rgba(0,0,0,.25);
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 8px;
+      padding: 8px;
+    }
+
+    .kpi-n {
+      font-size: 16px;
+      font-weight: 800;
+    }
+
+    .kpi-t {
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .hr {
+      height: 1px;
+      background: rgba(255,255,255,.08);
+      margin: 10px 0;
+    }
+
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,.7);
+      backdrop-filter: blur(3px);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal.active {
+      display: flex;
+    }
+
+    #seatEditorModal {
+      z-index: 120;
+    }
+
+    .modal-content {
+      background: var(--panel);
+      border: 1px solid rgba(255,255,255,.10);
+      border-radius: 14px;
+      padding: 20px;
+      max-width: 500px;
+      width: 90%;
+      max-height: 80vh;
+      overflow-y: auto;
+      box-shadow: 0 20px 60px rgba(0,0,0,.4);
+    }
+
+    .modal-title {
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 16px;
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+      margin-top: 16px;
+    }
+
+    .seats-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .seat-card {
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,.10);
+      background: rgba(0,0,0,.18);
+      cursor: pointer;
+      font-size: 12px;
+      user-select: none;
+    }
+
+    .seat-card:hover {
+      background: rgba(0,0,0,.25);
+    }
+
+    .seat-card-no {
+      font-weight: 600;
+      font-family: ui-monospace, monospace;
+      margin-bottom: 4px;
+    }
+
+    .seat-card-name {
+      color: var(--ok);
+      margin-bottom: 2px;
+    }
+
+    .seat-card-empty {
+      color: var(--muted);
+      font-style: italic;
+    }
+
+    .seat-card-dept {
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .badge {
+      display: inline-block;
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: rgba(34,197,94,.15);
+      border: 1px solid rgba(34,197,94,.35);
+      color: rgba(34,197,94,.95);
+    }
+
+    .badge.empty {
+      background: rgba(245,158,11,.15);
+      border-color: rgba(245,158,11,.35);
+      color: rgba(245,158,11,.95);
+    }
+
+    .search-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .search-row input {
+      flex: 1;
+    }
+
+    .mono {
+      font-family: ui-monospace, monospace;
+    }
+
+    .chip {
+      display: inline-block;
+      background: rgba(27,42,85,.7);
+      border: 1px solid rgba(255,255,255,.10);
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      color: var(--muted);
+      margin: 2px 4px 2px 0;
+    }
+
+    .chip b {
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    .empty-state {
+      color: var(--muted);
+      text-align: center;
+      padding: 20px;
+      font-size: 12px;
+    }
+
+    /* Grid layout for seats */
+    .seats-grid {
+      display: grid;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .seat-card.grid-mode {
+      padding: 6px;
+      min-height: 60px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      font-size: 11px;
+    }
+
+    .seat-card-no.grid {
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 2px;
+    }
+
+    .seat-card-name.grid {
+      font-size: 10px;
+      color: var(--ok);
+      margin-bottom: 1px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      width: 100%;
+    }
+
+    .seat-card-dept.grid {
+      font-size: 9px;
+      color: var(--muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      width: 100%;
+    }
+
+    .view-toggle {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 10px;
+    }
+
+    .view-toggle button {
+      flex: 1;
+      font-size: 11px;
+      padding: 6px 8px;
+    }
+
+    .view-toggle button.active {
+      border-color: rgba(99,102,241,.55);
+      background: rgba(99,102,241,.14);
+    }
+
+    /* Seats Grid Modal */
+    .seats-grid-modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,.85);
+      backdrop-filter: blur(5px);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .seats-grid-modal.active {
+      display: flex;
+    }
+
+    .seats-grid-modal-content {
+      background: var(--panel);
+      border: 1px solid rgba(255,255,255,.10);
+      border-radius: 14px;
+      padding: 20px;
+      max-width: 90vw;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 20px 60px rgba(0,0,0,.6);
+      width: auto;
+    }
+
+    .seats-grid-modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid rgba(255,255,255,.08);
+    }
+
+    .seats-grid-modal-title {
+      font-size: 16px;
+      font-weight: 700;
+    }
+
+    .seats-grid-modal-close {
+      cursor: pointer;
+      font-size: 24px;
+      color: var(--muted);
+      line-height: 1;
+      padding: 4px 8px;
+      border-radius: 6px;
+      transition: all 0.2s;
+    }
+
+    .seats-grid-modal-close:hover {
+      background: rgba(255,255,255,.1);
+      color: var(--text);
+    }
+
+    .seats-grid-large {
+      display: grid;
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+
+    .seat-card-large {
+      padding: 10px;
+      min-height: 80px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      font-size: 12px;
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,.10);
+      background: rgba(0,0,0,.18);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .seat-card-large:hover {
+      background: rgba(0,0,0,.35);
+      border-color: rgba(99,102,241,.35);
+      transform: scale(1.02);
+    }
+
+    .seat-card-large.occupied {
+      background: rgba(34,197,94,.08);
+      border-color: rgba(34,197,94,.25);
+    }
+
+    .seat-card-large.occupied:hover {
+      background: rgba(34,197,94,.15);
+      border-color: rgba(34,197,94,.45);
+    }
+
+    .seat-card-no-large {
+      font-size: 14px;
+      font-weight: 700;
+      font-family: ui-monospace, monospace;
+      margin-bottom: 4px;
+      color: var(--primary);
+    }
+
+    .seat-card-name-large {
+      font-size: 13px;
+      color: var(--ok);
+      margin-bottom: 2px;
+      font-weight: 600;
+    }
+
+    .seat-card-empty-large {
+      font-size: 11px;
+      color: var(--muted);
+      font-style: italic;
+    }
+
+    .seat-card-dept-large {
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .seat-card-info-large {
+      font-size: 10px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="row">
+    <h1>D座8层 数字孪生工位管理系统</h1>
+    <div class="hint">拖拽创建区域 → 配置工位 → 录入人员</div>
+    <div style="margin-left: auto; display: flex; gap: 12px; align-items: center;">
+      <span id="syncStatus" style="font-size: 12px; color: var(--muted);">○ 离线</span>
+      <button class="btn" id="btnManualSync" style="font-size: 11px; padding: 4px 8px;">手动同步</button>
+    </div>
+  </div>
+</header>
+
+<div class="main">
+  <!-- Left Sidebar -->
+  <div class="sidebar-left">
+    <div class="sidebar-left-hd">控制台</div>
+    <div class="sidebar-left-bd">
+      <div class="kpi" id="kpi"></div>
+
+      <div class="hr"></div>
+
+      <div class="search-row">
+        <input id="qSearch" placeholder="搜索..." />
+        <button class="btn" id="btnClearSearch">清除</button>
+      </div>
+
+      <div class="hr"></div>
+
+      <div style="font-weight: 700; margin-bottom: 8px;">操作</div>
+      <button class="btn primary" id="btnFloorSettings" style="width: 100%; margin-bottom: 8px;">⚙️ 楼层设置</button>
+      <button class="btn primary" id="btnAddZone" style="width: 100%; margin-bottom: 8px;">➕ 添加区域</button>
+      <button class="btn" id="btnExport" style="width: 100%; margin-bottom: 8px;">📥 导出JSON</button>
+      <button class="btn" id="btnImport" style="width: 100%; margin-bottom: 8px;">📤 导入JSON</button>
+      <button class="btn" id="btnDownloadTemplate" style="width: 100%; margin-bottom: 8px;">📋 下载导入模板</button>
+      <button class="btn" id="btnImportXlsx" style="width: 100%; margin-bottom: 8px;">📊 导入XLSX</button>
+      <button class="btn" id="btnImportNetworkIP" style="width: 100%; margin-bottom: 8px;">🌐 批量导入网络IP</button>
+      <button class="btn" id="btnExportNetworkIP" style="width: 100%; margin-bottom: 8px;">📤 导出网口IP信息</button>
+      <button class="btn" id="btnDebugSeats" style="width: 100%; margin-bottom: 8px;">🐛 调试工位数据</button>
+      <button class="btn danger" id="btnReset" style="width: 100%;">⚠️ 清空数据</button>
+
+      <div class="hr"></div>
+
+      <div style="font-weight: 700; margin-bottom: 8px;">区域列表</div>
+      <div class="zones-list" id="zonesList"></div>
+    </div>
+  </div>
+
+  <!-- Canvas Area -->
+  <div class="canvas-area">
+    <div class="canvas-toolbar">
+      <span id="toolbarStatus" style="flex: 1; font-size: 12px; color: var(--muted);">就绪</span>
+      <button class="btn" id="btnZoomIn">🔍+</button>
+      <button class="btn" id="btnZoomOut">🔍-</button>
+      <button class="btn" id="btnZoomReset">🔍重置</button>
+    </div>
+    <div class="canvas-container">
+      <canvas id="canvas"></canvas>
+    </div>
+  </div>
+
+  <!-- Right Sidebar -->
+  <div class="sidebar-right">
+    <div class="sidebar-right-hd" id="rightTitle">选择区域</div>
+    <div class="sidebar-right-bd" id="rightPanel">
+      <div class="empty-state">👈 在画布上点击或拖拽创建区域</div>
+    </div>
+  </div>
+</div>
+
+<!-- Zone Config Modal -->
+<div class="modal" id="zoneConfigModal">
+  <div class="modal-content">
+    <div class="modal-title">区域配置</div>
+
+    <div>
+      <label>区域名称</label>
+      <input id="cfgName" placeholder="例如：综合区A" />
+    </div>
+
+    <div class="mt10 grid2">
+      <div>
+        <label>区域编码</label>
+        <input id="cfgCode" class="mono" placeholder="例如：ZHA" />
+      </div>
+      <div>
+        <label>区域颜色</label>
+        <input id="cfgColor" type="color" value="#6366f1" />
+      </div>
+    </div>
+
+    <div class="mt10">
+      <label>区域图片</label>
+      <div id="zoneImagePreview" style="margin-bottom: 8px; display: none;">
+        <img id="zoneImagePreviewImg" style="max-width: 200px; max-height: 150px; border-radius: 4px; border: 1px solid var(--line);" />
+        <button class="btn danger" type="button" id="btnDeleteZoneImage" style="margin-left: 8px;">删除图片</button>
+      </div>
+      <input type="file" id="zoneImageFile" accept="image/*" />
+      <div style="font-size: 11px; color: var(--muted); margin-top: 4px;">支持 jpg, png, gif, webp 格式，最大 5MB</div>
+    </div>
+
+    <div class="mt10">
+      <label>区域类型</label>
+      <select id="cfgType" onchange="toggleZoneTypeFields()">
+        <option value="seat">座位区域</option>
+        <option value="function">功能区域（会议室、茶水间等）</option>
+      </select>
+    </div>
+
+    <div id="seatFieldsContainer">
+      <div class="mt10 grid2">
+        <div>
+          <label>工位数</label>
+          <input id="cfgCount" type="number" min="1" value="100" />
+        </div>
+        <div>
+          <label>行数</label>
+          <input id="cfgRows" type="number" min="1" value="10" />
+        </div>
+      </div>
+
+      <div class="mt10 grid2">
+        <div>
+          <label>列数</label>
+          <input id="cfgCols" type="number" min="1" value="10" />
+        </div>
+        <div>
+          <label>显示顺序</label>
+          <select id="cfgOrder">
+            <optgroup label="按行排序">
+              <option value="row">→ 按行（正序 1→N）</option>
+              <option value="row-reverse">← 按行倒排（正序 1→N）</option>
+              <option value="snake">⤵ 蛇形（正序 1→N）</option>
+              <option value="snake-reverse">↪︎ 蛇形倒排（正序 1→N）</option>
+              <option value="row-desc">→ 按行（倒序 N→1）</option>
+              <option value="row-reverse-desc">← 按行倒排（倒序 N→1）</option>
+              <option value="snake-desc">⤵ 蛇形（倒序 N→1）</option>
+              <option value="snake-reverse-desc">⤴︎ 蛇形倒排（倒序 N→1）</option>
+            </optgroup>
+            <optgroup label="按列排序">
+              <option value="col">↓ 按列（正序 1→N）</option>
+              <option value="col-reverse">↑ 按列倒排（正序 1→N）</option>
+              <option value="col-snake">⤴ 列蛇形（正序 1→N）</option>
+              <option value="col-desc">↓ 按列（倒序 N→1）</option>
+              <option value="col-reverse-desc">↑ 按列倒排（倒序 N→1）</option>
+              <option value="col-snake-desc">⤴ 列蛇形（倒序 N→1）</option>
+            </optgroup>
+          </select>
+        </div>
+      </div>
+
+      <div class="mt10" id="startNumberContainer" style="display: none;">
+        <label>起始编号（重建工位时使用）</label>
+        <input id="cfgStartNumber" type="number" min="1" value="1" placeholder="默认为1" />
+        <div style="font-size: 11px; color: var(--muted); margin-top: 4px;">
+          修改工位配置时，将从此编号开始重新分配工位编号
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn" id="btnCfgCancel">取消</button>
+      <button class="btn primary" id="btnCfgSave">保存</button>
+      <button class="btn danger" id="btnCfgDelete">删除区域</button>
+    </div>
+  </div>
+</div>
+
+<!-- Seats Grid Modal -->
+<div class="seats-grid-modal" id="seatsGridModal">
+  <div class="seats-grid-modal-content">
+    <div class="seats-grid-modal-header">
+      <div class="seats-grid-modal-title" id="gridModalTitle">工位分布</div>
+      <div class="seats-grid-modal-close" onclick="closeSeatsGridModal()">✕</div>
+    </div>
+    <div id="gridModalBody"></div>
+  </div>
+</div>
+
+<!-- Seat Editor Modal -->
+<div class="modal" id="seatEditorModal">
+  <div class="modal-content">
+    <div class="modal-title" id="seatEditorTitle">编辑工位</div>
+
+    <!-- ⭐ 工位号字段（可编辑，允许重复） -->
+    <div>
+      <label>工位号 <span style="color: var(--muted); font-size: 11px;">(3位数字，可重复)</span></label>
+      <div style="display: flex; gap: 8px;">
+        <input id="seatNoEdit" type="text" placeholder="留空表示无编号" maxlength="3" pattern="\d{3}"
+               style="flex: 1;" />
+        <button class="btn" id="btnClearSeatNo" onclick="clearSeatNumber()">清除编号</button>
+      </div>
+      <div id="seatNoError" style="color: var(--bad); font-size: 11px; margin-top: 4px; display: none;"></div>
+    </div>
+
+    <div style="height: 12px;"></div>
+
+    <div class="grid2">
+      <div>
+        <label>姓名</label>
+        <input id="seatName" placeholder="例如：张三" />
+      </div>
+      <div>
+        <label>部门/项目组</label>
+        <input id="seatDept" placeholder="例如：供应链组" />
+      </div>
+    </div>
+
+    <div class="mt10 grid2">
+      <div>
+        <label>工号</label>
+        <input id="seatEmpId" placeholder="可选" />
+      </div>
+      <div>
+        <label>电话</label>
+        <input id="seatPhone" placeholder="可选" />
+      </div>
+    </div>
+
+    <div class="mt10">
+      <label>备注</label>
+      <textarea id="seatNote" placeholder="例如：临时工位、外包、共享工位等"></textarea>
+    </div>
+
+    <div class="mt10">
+      <label style="font-weight: 700; margin-bottom: 8px; display: block;">网络接口信息</label>
+      <div class="grid2">
+        <div>
+          <label>S接口编号</label>
+          <input id="seatInterfaceS" placeholder="例如：S001" />
+        </div>
+        <div>
+          <label>W接口编号</label>
+          <input id="seatInterfaceW" placeholder="例如：W001" />
+        </div>
+      </div>
+      <div class="mt10 grid2">
+        <div>
+          <label>S接口IP</label>
+          <input id="seatIpS" placeholder="例如：10.148.60.11" />
+        </div>
+        <div>
+          <label>W接口IP</label>
+          <input id="seatIpW" placeholder="例如：192.168.81.1" />
+        </div>
+      </div>
+    </div>
+
+    <div class="mt10" id="seatMeta"></div>
+
+    <div class="modal-actions">
+      <button class="btn" id="btnSeatCancel">取消</button>
+      <button class="btn danger" id="btnSeatClear">清空</button>
+      <button class="btn primary" id="btnSeatSave">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Floor Settings Modal -->
+<div class="modal" id="floorSettingsModal">
+  <div class="modal-content">
+    <div class="modal-title">楼层设置</div>
+
+    <div class="mt10 grid2">
+      <div>
+        <label>画布宽度 (px)</label>
+        <input id="floorCanvasWidth" type="number" min="800" value="3000" />
+      </div>
+      <div>
+        <label>画布高度 (px)</label>
+        <input id="floorCanvasHeight" type="number" min="600" value="2000" />
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn" id="btnFloorCancel">取消</button>
+      <button class="btn primary" id="btnFloorSave">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Network IP Import Modal -->
+<div class="modal" id="networkIPImportModal">
+  <div class="modal-content">
+    <div class="modal-title">批量导入网络接口IP</div>
+
+    <div class="mt10">
+      <p style="color: var(--muted); font-size: 13px; line-height: 1.6;">
+        支持Excel (.xlsx, .xls) 和 CSV (.csv) 格式。文件应包含以下列：
+      </p>
+      <ul style="color: var(--muted); font-size: 13px; margin: 10px 0; padding-left: 20px;">
+        <li><strong>interfaceS</strong>: S接口编号（例如：S-001）</li>
+        <li><strong>ipS</strong>: S接口IP地址</li>
+        <li><strong>interfaceW</strong>: W接口编号（例如：W-001）</li>
+        <li><strong>ipW</strong>: W接口IP地址</li>
+      </ul>
+      <p style="color: var(--warn); font-size: 12px; margin-top: 10px;">
+        ⚠️ 系统将根据接口编号匹配工位并更新对应的IP地址
+      </p>
+    </div>
+
+    <div class="mt10">
+      <label>选择文件</label>
+      <input id="networkIPFileInput" type="file" accept=".xlsx,.xls,.csv" />
+    </div>
+
+    <div class="mt10" id="networkIPPreview" style="display: none;">
+      <label>预览数据 (前5条)</label>
+      <div id="networkIPPreviewContent" style="
+        max-height: 200px;
+        overflow-y: auto;
+        background: rgba(255,255,255,0.05);
+        border: 1px solid var(--line);
+        border-radius: 4px;
+        padding: 10px;
+        font-family: monospace;
+        font-size: 12px;
+      "></div>
+    </div>
+
+    <div class="mt10" id="networkIPStatus" style="display: none;">
+      <div id="networkIPStatusText" style="padding: 10px; border-radius: 4px; font-size: 13px;"></div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn" id="btnNetworkIPCancel">取消</button>
+      <button class="btn" id="btnNetworkIPDownloadTemplate">下载模板</button>
+      <button class="btn primary" id="btnNetworkIPImport" disabled>开始导入</button>
+    </div>
+  </div>
+</div>
+
+<input id="fileInput" type="file" accept="application/json" style="display:none" />
+<input id="xlsxInput" type="file" accept=".xlsx,.xls" style="display:none" />
+
+<script>
+const STORAGE_KEY = "D8F-floor-twins-v2";
+const CANVAS_WIDTH = 1400;
+const CANVAS_HEIGHT = 1400;
+
+// ==================== API Client Configuration ====================
+const API_BASE = 'https://seat.dougge.top/api';
+const FLOOR_ID = 'floor_d8';
+const USE_API = true; // 设为 false 以使用纯 localStorage 模式
+
+// API Client
+const api = {
+  async getFloorData() {
+    const res = await fetch(`${API_BASE}/floors/${FLOOR_ID}`);
+    if (!res.ok) throw new Error(`API Error: ${res.status}`);
+    const data = await res.json();
+    return data.data;
+  },
+
+  async getZones() {
+    const res = await fetch(`${API_BASE}/floors/${FLOOR_ID}/zones`);
+    if (!res.ok) throw new Error(`API Error: ${res.status}`);
+    const data = await res.json();
+    return data.data;
+  },
+
+  async createZone(zoneData) {
+    const res = await fetch(`${API_BASE}/floors/${FLOOR_ID}/zones`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(zoneData)
+    });
+    if (!res.ok) throw new Error(`API Error: ${res.status}`);
+    return (await res.json()).data;
+  },
+
+  async updateZone(zoneId, updates) {
+    const res = await fetch(`${API_BASE}/floors/${FLOOR_ID}/zones/${zoneId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates)
+    });
+    if (!res.ok) throw new Error(`API Error: ${res.status}`);
+    return (await res.json()).data;
+  },
+
+  async deleteZone(zoneId) {
+    const res = await fetch(`${API_BASE}/floors/${FLOOR_ID}/zones/${zoneId}`, {
+      method: 'DELETE'
+    });
+    if (!res.ok) throw new Error(`API Error: ${res.status}`);
+    return await res.json();
+  },
+
+  async getSeats() {
+    const res = await fetch(`${API_BASE}/floors/${FLOOR_ID}/seats`);
+    if (!res.ok) throw new Error(`API Error: ${res.status}`);
+    const data = await res.json();
+    return data.data.seats;
+  },
+
+  async updateSeat(seatId, updates) {
+    const res = await fetch(`${API_BASE}/floors/${FLOOR_ID}/seats/${seatId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates)
+    });
+    if (!res.ok) throw new Error(`API Error: ${res.status}`);
+    return (await res.json()).data;
+  },
+
+  async clearSeatNumber(seatId) {
+    const res = await fetch(`${API_BASE}/floors/${FLOOR_ID}/seats/${seatId}/clear-number`, {
+      method: 'PATCH'
+    });
+    if (!res.ok) throw new Error(`API Error: ${res.status}`);
+    return (await res.json()).data;
+  },
+
+  async updateFloor(floorId, updates) {
+    const res = await fetch(`${API_BASE}/floors/${floorId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates)
+    });
+    if (!res.ok) throw new Error(`API Error: ${res.status}`);
+    return (await res.json()).data;
+  },
+
+  async uploadZoneImage(zoneId, file) {
+    const formData = new FormData();
+    formData.append('image', file);
+    const res = await fetch(`${API_BASE}/floors/${FLOOR_ID}/zones/${zoneId}/upload-image`, {
+      method: 'POST',
+      body: formData
+    });
+    if (!res.ok) throw new Error(`API Error: ${res.status}`);
+    const data = await res.json();
+    return data.data;
+  },
+
+  async deleteZoneImage(zoneId) {
+    const res = await fetch(`${API_BASE}/floors/${FLOOR_ID}/zones/${zoneId}/image`, {
+      method: 'DELETE'
+    });
+    if (!res.ok) throw new Error(`API Error: ${res.status}`);
+    const data = await res.json();
+    return data.data;
+  }
+};
+
+// ==================== WebSocket Sync Client ====================
+const WS_ENABLED = true; // 设为 false 以禁用 WebSocket
+const WS_URL = 'https://seat.dougge.top/';
+
+class SyncClient {
+  constructor() {
+    this.socket = null;
+    this.isConnected = false;
+    this.lastSyncTime = Date.now();
+    this.offlineQueue = []; // 离线时的操作队列
+    this.clientVersions = { zones: {}, seats: {} }; // 本地版本号缓存
+    this.syncInterval = null;
+  }
+
+  /**
+   * 初始化 WebSocket 连接
+   */
+  initialize() {
+    if (!WS_ENABLED || !USE_API) {
+      console.log('[Sync] WebSocket 已禁用');
+      return;
+    }
+
+    this.socket = io(WS_URL, {
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      reconnectionAttempts: 5
+    });
+
+    this.setupEventListeners();
+    this.updateConnectionStatus(false);
+  }
+
+  /**
+   * 设置事件监听器
+   */
+  setupEventListeners() {
+    // 连接成功
+    this.socket.on('connect', () => {
+      console.log('[Sync] WebSocket 已连接:', this.socket.id);
+      this.isConnected = true;
+      this.updateConnectionStatus(true);
+
+      // 订阅楼层数据
+      this.socket.emit('subscribe:floor', FLOOR_ID);
+
+      // 处理离线队列
+      this.processOfflineQueue();
+
+      // 启动定期增量同步（每30秒）
+      if (this.syncInterval) clearInterval(this.syncInterval);
+      this.syncInterval = setInterval(() => this.requestIncrementalSync(), 30000);
+    });
+
+    // 连接断开
+    this.socket.on('disconnect', () => {
+      console.log('[Sync] WebSocket 已断开');
+      this.isConnected = false;
+      this.updateConnectionStatus(false);
+      if (this.syncInterval) {
+        clearInterval(this.syncInterval);
+        this.syncInterval = null;
+      }
+    });
+
+    // 接收初始数据
+    this.socket.on('sync:initial', ({ zones, seats, timestamp }) => {
+      console.log('[Sync] 收到初始数据');
+      this.applyInitialData(zones, seats);
+      this.lastSyncTime = timestamp;
+    });
+
+    // 接收增量数据
+    this.socket.on('sync:incremental', ({ changes, timestamp }) => {
+      console.log('[Sync] 收到增量数据:', changes);
+      this.applyIncrementalChanges(changes);
+      this.lastSyncTime = timestamp;
+    });
+
+    // 接收实时更新 - 区域更新
+    this.socket.on('zone:updated', ({ data, timestamp }) => {
+      console.log('[Sync] 区域已更新:', data);
+      this.applyZoneUpdate(data);
+    });
+
+    // 接收实时更新 - 区域删除
+    this.socket.on('zone:deleted', ({ data, timestamp }) => {
+      console.log('[Sync] 区域已删除:', data);
+      this.applyZoneDelete(data._id);
+    });
+
+    // 接收实时更新 - 工位更新
+    this.socket.on('seat:updated', ({ data, timestamp }) => {
+      console.log('[Sync] 工位已更新:', data);
+      this.applySeatUpdate(data);
+    });
+
+    // 接收实时更新 - 工位删除
+    this.socket.on('seat:deleted', ({ data, timestamp }) => {
+      console.log('[Sync] 工位已删除:', data);
+      this.applySeatDelete(data._id);
+    });
+
+    // 上传结果
+    this.socket.on('sync:upload-result', (result) => {
+      console.log('[Sync] 上传结果:', result);
+      this.handleUploadResult(result);
+    });
+
+    // 冲突通知
+    this.socket.on('sync:conflicts', ({ conflicts, timestamp }) => {
+      console.warn('[Sync] 检测到数据冲突:', conflicts);
+      this.handleConflicts(conflicts);
+    });
+
+    // 错误处理
+    this.socket.on('error', ({ message, error }) => {
+      console.error('[Sync] 错误:', message, error);
+      showNotification(`同步错误: ${message}`, 'error');
+    });
+  }
+
+  /**
+   * 请求增量同步
+   */
+  requestIncrementalSync() {
+    if (!this.isConnected) {
+      console.log('[Sync] 未连接，跳过增量同步');
+      return;
+    }
+
+    console.log('[Sync] 请求增量同步...');
+    this.socket.emit('sync:request', {
+      floorId: FLOOR_ID,
+      lastSyncTime: this.lastSyncTime,
+      clientVersions: this.clientVersions
+    });
+  }
+
+  /**
+   * 应用初始数据
+   */
+  applyInitialData(zones, seats) {
+    // 更新 zones，确保 id 字段始终存在
+    // ⭐ 修复：确保每个 zone 都有 id 字段
+    state.zones = zones.map(zone => {
+      this.clientVersions.zones[zone._id] = zone.version;
+      return {
+        ...zone,
+        id: zone.id || zone._id?.toString() || zone._id
+      };
+    });
+
+    // 更新 seats
+    // ⭐ 修复：使用统一的 seatId 格式
+    const seatsObj = {};
+    for (const seat of seats) {
+      const seatId = seat.seatNo
+        ? `${seat.zoneId}::${seat.seatNo}`
+        : `${seat.zoneId}::${seat.r}-${seat.c}`;
+
+      this.clientVersions.seats[seat._id] = seat.version;
+      seatsObj[seatId] = seat;
+    }
+    state.seats = seatsObj;
+
+    // 重新渲染
+    renderAll();
+    saveState();
+    showNotification('数据已同步', 'success');
+  }
+
+  /**
+   * 应用增量变更
+   */
+  applyIncrementalChanges(changes) {
+    let hasChanges = false;
+
+    // 更新区域
+    if (changes.zones && changes.zones.length > 0) {
+      for (const zone of changes.zones) {
+        this.applyZoneUpdate(zone);
+      }
+      hasChanges = true;
+    }
+
+    // 更新工位
+    if (changes.seats && changes.seats.length > 0) {
+      for (const seat of changes.seats) {
+        this.applySeatUpdate(seat);
+      }
+      hasChanges = true;
+    }
+
+    // 删除区域
+    if (changes.deletedZones && changes.deletedZones.length > 0) {
+      for (const zoneId of changes.deletedZones) {
+        this.applyZoneDelete(zoneId);
+      }
+      hasChanges = true;
+    }
+
+    // 删除工位
+    if (changes.deletedSeats && changes.deletedSeats.length > 0) {
+      for (const seatId of changes.deletedSeats) {
+        this.applySeatDelete(seatId);
+      }
+      hasChanges = true;
+    }
+
+    if (hasChanges) {
+      renderAll();
+      saveState();
+      showNotification('数据已更新', 'info');
+    }
+  }
+
+  /**
+   * 应用区域更新
+   */
+  applyZoneUpdate(zoneData) {
+    // ⭐ 修复：确保 id 字段始终存在且一致
+    const zoneDataWithId = {
+      ...zoneData,
+      id: zoneData.id || zoneData._id?.toString() || zoneData._id
+    };
+
+    const existingIndex = state.zones.findIndex(z => z._id === zoneData._id);
+    if (existingIndex !== -1) {
+      state.zones[existingIndex] = zoneDataWithId;
+    } else {
+      state.zones.push(zoneDataWithId);
+    }
+    this.clientVersions.zones[zoneData._id] = zoneData.version;
+  }
+
+  /**
+   * 应用区域删除
+   */
+  applyZoneDelete(zoneId) {
+    state.zones = state.zones.filter(z => z._id !== zoneId);
+    delete this.clientVersions.zones[zoneId];
+  }
+
+  /**
+   * 应用工位更新
+   */
+  applySeatUpdate(seatData) {
+    // ⭐ 修复：生成统一的 seatId 格式
+    const newSeatId = seatData.seatNo
+      ? `${seatData.zoneId}::${seatData.seatNo}`
+      : `${seatData.zoneId}::${seatData.r}-${seatData.c}`;
+
+    // 查找旧的 seatId 并删除（以处理编号变更的情况）
+    const oldSeatId = Object.keys(state.seats).find(
+      key => state.seats[key]._id === seatData._id
+    );
+
+    if (oldSeatId && oldSeatId !== newSeatId) {
+      delete state.seats[oldSeatId];
+    }
+
+    // 保存更新后的工位数据
+    state.seats[newSeatId] = seatData;
+    this.clientVersions.seats[seatData._id] = seatData.version;
+  }
+
+  /**
+   * 应用工位删除
+   */
+  applySeatDelete(seatId) {
+    delete state.seats[seatId];
+    delete this.clientVersions.seats[seatId];
+  }
+
+  /**
+   * 添加操作到离线队列
+   */
+  addToOfflineQueue(operation) {
+    if (!this.isConnected) {
+      console.log('[Sync] 添加到离线队列:', operation);
+      this.offlineQueue.push({
+        ...operation,
+        timestamp: Date.now()
+      });
+    }
+  }
+
+  /**
+   * 处理离线队列
+   */
+  async processOfflineQueue() {
+    if (this.offlineQueue.length === 0) return;
+
+    console.log(`[Sync] 处理离线队列 (${this.offlineQueue.length} 项)...`);
+
+    const changes = {
+      zones: [],
+      seats: []
+    };
+
+    // 整理队列中的变更
+    for (const operation of this.offlineQueue) {
+      if (operation.type === 'zone') {
+        changes.zones.push(operation.data);
+      } else if (operation.type === 'seat') {
+        changes.seats.push(operation.data);
+      }
+    }
+
+    // 上传变更
+    this.socket.emit('sync:upload', {
+      floorId: FLOOR_ID,
+      changes
+    });
+
+    // 清空队列
+    this.offlineQueue = [];
+  }
+
+  /**
+   * 处理上传结果
+   */
+  handleUploadResult(result) {
+    if (result.applied.length > 0) {
+      console.log(`[Sync] 成功应用 ${result.applied.length} 个变更`);
+
+      // 更新本地版本号
+      for (const item of result.applied) {
+        if (item.type === 'zone') {
+          this.clientVersions.zones[item.id] = item.newVersion;
+        } else if (item.type === 'seat') {
+          this.clientVersions.seats[item.id] = item.newVersion;
+        }
+      }
+    }
+
+    if (result.errors.length > 0) {
+      console.error(`[Sync] ${result.errors.length} 个错误:`, result.errors);
+      showNotification(`同步失败: ${result.errors.length} 个错误`, 'error');
+    }
+  }
+
+  /**
+   * 处理冲突
+   */
+  handleConflicts(conflicts) {
+    if (conflicts.length === 0) return;
+
+    // 简单策略：服务器优先
+    console.warn('[Sync] 检测到冲突，使用服务器数据覆盖本地数据');
+
+    for (const conflict of conflicts) {
+      if (conflict.type === 'zone') {
+        this.applyZoneUpdate(conflict.serverData);
+      } else if (conflict.type === 'seat') {
+        this.applySeatUpdate(conflict.serverData);
+      }
+    }
+
+    renderAll();
+    saveState();
+    showNotification(`检测到 ${conflicts.length} 个数据冲突，已使用服务器数据`, 'warn');
+  }
+
+  /**
+   * 更新连接状态显示
+   */
+  updateConnectionStatus(connected) {
+    const statusEl = document.getElementById('syncStatus');
+    if (statusEl) {
+      statusEl.textContent = connected ? '● 已连接' : '○ 离线';
+      statusEl.style.color = connected ? 'var(--ok)' : 'var(--muted)';
+    }
+  }
+
+  /**
+   * 手动触发同步
+   */
+  manualSync() {
+    if (!this.isConnected) {
+      showNotification('未连接到服务器', 'warn');
+      return;
+    }
+    this.requestIncrementalSync();
+    showNotification('正在同步...', 'info');
+  }
+}
+
+// 创建全局同步客户端实例
+const syncClient = new SyncClient();
+
+// 将 API 返回的 seats 数组转换为前端的 object 格式
+function convertSeatsToObject(seatsArray) {
+  const seatsObj = {};
+  for (const seat of seatsArray) {
+    // ⭐ 修复：使用统一的 seatId 格式
+    // 当 seatNo 为 null 时，使用位置信息 (r-c)
+    const seatId = seat.seatNo
+      ? `${seat.zoneId}::${seat.seatNo}`
+      : `${seat.zoneId}::${seat.r}-${seat.c}`;
+
+    seatsObj[seatId] = {
+      ...seat,
+      zoneId: seat.zoneId
+    };
+  }
+  return seatsObj;
+}
+
+// 显示通知消息
+function showNotification(message, type = 'info') {
+  console.log(`[${type.toUpperCase()}] ${message}`);
+  // 可以在此添加 UI 通知组件
+}
+
+function uid(prefix="id"){
+  return prefix + "_" + Math.random().toString(16).slice(2) + Date.now().toString(16);
+}
+function now(){
+  return new Date().toISOString();
+}
+function pad3(n){
+  const s = String(n);
+  return s.length>=3 ? s : ("000".slice(s.length) + s);
+}
+function pad2(n){
+  const s = String(n);
+  return s.length>=2 ? s : ("00".slice(s.length) + s);
+}
+function escapeHtml(str){
+  return String(str).replace(/[&<>"']/g, s => ({
+    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+  }[s]));
+}
+
+function defaultState(){
+  return {
+    floor: {
+      id: "floor_d8",
+      name: "D座8层",
+      canvasWidth: CANVAS_WIDTH,
+      canvasHeight: CANVAS_HEIGHT
+    },
+    zones: [],
+    seats: {}
+  };
+}
+
+async function loadState(){
+  if (USE_API) {
+    try {
+      console.log('⏳ 正在从 API 加载数据...');
+      const data = await api.getFloorData();
+
+      const loadedState = {
+        floor: data.floor,
+        zones: data.zones,
+        seats: convertSeatsToObject(data.seats)
+      };
+
+      console.log('✓ API 数据加载成功');
+      console.log('Zones:', loadedState.zones.map(z => ({ name: z.name, id: z.id, _id: z._id })));
+
+      // 同时保存到 localStorage 作为备份
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(loadedState));
+      return loadedState;
+    } catch (error) {
+      console.error('✗ API 加载失败，使用本地缓存:', error.message);
+      showNotification('API 连接失败，使用本地缓存数据', 'warn');
+      // 回退到 localStorage
+      const raw = localStorage.getItem(STORAGE_KEY);
+      return raw ? JSON.parse(raw) : defaultState();
+    }
+  } else {
+    // 纯 localStorage 模式
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if(!raw) return defaultState();
+      const obj = JSON.parse(raw);
+      if(!obj || !obj.floor || !Array.isArray(obj.zones) || typeof obj.seats !== "object")
+        return defaultState();
+      return obj;
+    } catch(e) {
+      return defaultState();
+    }
+  }
+}
+
+async function saveState(){
+  // 始终保存到 localStorage（本地备份）
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+
+  if (USE_API) {
+    try {
+      // 异步保存到服务器（不阻塞 UI）
+      // 注意：这里简化处理，实际应用中应该实现更细粒度的更新
+      console.log('⏳ 同步数据到服务器...');
+      // 服务器同步在特定操作中单独处理（zone/seat 的 CRUD）
+    } catch (error) {
+      console.error('✗ 保存到服务器失败:', error.message);
+      showNotification('数据同步失败，已保存到本地', 'warn');
+    }
+  }
+}
+
+let state = defaultState();
+let selectedZoneId = null;
+let selectedSeatId = null;
+let searchQuery = "";
+let viewMode = "grid"; // "list" or "grid"
+let isDrawing = false;
+let drawStart = null;
+let zoom = 1;
+let isDragging = false;
+let isResizing = false;
+let dragStart = null;
+let resizeHandle = null;
+
+// 异步初始化状态
+async function initState() {
+  state = await loadState();
+  // 初始化后调用渲染
+  document.addEventListener('DOMContentLoaded', () => {
+    renderAll();
+  });
+}
+
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+const fileInput = document.getElementById("fileInput");
+
+canvas.width = CANVAS_WIDTH;
+canvas.height = CANVAS_HEIGHT;
+
+// Utility: Find zone by id
+function getZone(id) {
+  console.log('=== getZone ===');
+  console.log('Looking for id:', id, 'type:', typeof id);
+  console.log('Available zones:', state.zones.map(z => ({
+    name: z.name,
+    id: z.id,
+    idType: typeof z.id,
+    _id: z._id?.toString(),
+    match: z.id === id
+  })));
+  const found = state.zones.find(z => z.id === id);
+  console.log('Found zone:', found ? found.name : 'NOT FOUND');
+  return found;
+}
+
+// Utility: Get all seats for a zone
+function getZoneSeats(zoneId) {
+  return Object.values(state.seats)
+    .filter(s => s.zoneId === zoneId)
+    .sort((a, b) => a.globalIdx - b.globalIdx);
+}
+
+// ⭐ 新增：清理工位数据中的重复项
+// 确保每个工位的 _id 只出现一次，且 seatId 格式正确
+function cleanupDuplicateSeats() {
+  const seenIds = new Map(); // _id -> seatId
+  const toDelete = [];
+
+  // 遍历所有工位，记录每个 _id 的最新 seatId
+  for (const [seatId, seat] of Object.entries(state.seats)) {
+    if (!seat._id) continue;
+
+    // 计算正确的 seatId
+    const correctSeatId = seat.seatNo
+      ? `${seat.zoneId}::${seat.seatNo}`
+      : `${seat.zoneId}::${seat.r}-${seat.c}`;
+
+    if (seenIds.has(seat._id)) {
+      // 这个 _id 已经出现过
+      const existingSeatId = seenIds.get(seat._id);
+
+      // 保留格式正确的 seatId，删除错误的
+      if (seatId !== correctSeatId) {
+        toDelete.push(seatId);
+        console.log(`[清理] 删除错误格式的 seatId: ${seatId} (正确应为: ${correctSeatId})`);
+      } else if (existingSeatId !== correctSeatId) {
+        toDelete.push(existingSeatId);
+        seenIds.set(seat._id, seatId);
+        console.log(`[清理] 删除错误格式的 seatId: ${existingSeatId} (正确应为: ${correctSeatId})`);
+      }
+    } else {
+      // 首次遇到这个 _id
+      seenIds.set(seat._id, seatId);
+
+      // 如果当前 seatId 格式不正确，标记删除并重新添加
+      if (seatId !== correctSeatId) {
+        toDelete.push(seatId);
+        console.log(`[清理] 修正 seatId 格式: ${seatId} -> ${correctSeatId}`);
+        state.seats[correctSeatId] = seat;
+      }
+    }
+  }
+
+  // 删除标记的项
+  toDelete.forEach(seatId => delete state.seats[seatId]);
+
+  if (toDelete.length > 0) {
+    console.log(`[清理] 已清理 ${toDelete.length} 个重复或格式错误的工位数据`);
+    saveState();
+  }
+
+  return toDelete.length;
+}
+
+// ⭐ 新增：获取区域工位并组织成网格（用于渲染）
+// 不重新计算 globalIdx，直接使用现有数据
+function getZoneSeatsAsGrid(zone) {
+  // 获取该区域的所有现有工位
+  const zoneSeats = getZoneSeats(zone.id);
+
+  // 如果没有工位，返回空数组
+  if (zoneSeats.length === 0) {
+    return [];
+  }
+
+  // 将工位转换为数组格式，确保 seatId 格式一致
+  return zoneSeats.map(seat => {
+    // ⭐ 修复：当 seatNo 为 null 时，使用位置信息 (r-c) 作为标识
+    const seatId = seat.seatNo
+      ? `${zone.id}::${seat.seatNo}`
+      : `${zone.id}::${seat.r}-${seat.c}`;
+
+    return {
+      ...seat,
+      seatId
+    };
+  });
+}
+
+// Generate seats for a zone with global numbering
+function buildSeatsForZone(zone, startIdx = 1){
+  const seats = [];
+  const total = Math.max(1, Number(zone.count)||1);
+  const rows = Math.max(1, Number(zone.rows)||1);
+  const cols = Math.max(1, Number(zone.cols)||1);
+
+  // Create a list of [row, col] pairs based on ordering
+  const positions = [];
+
+  const orderType = (zone.order || "row").replace(/-desc$/, "");
+  const isDescending = (zone.order || "").endsWith("-desc");
+
+  if(orderType === "row"){
+    // Left to right, top to bottom
+    for(let r=1; r<=rows; r++){
+      for(let c=1; c<=cols; c++){
+        positions.push([r, c]);
+      }
+    }
+  }else if(orderType === "row-reverse"){
+    // Right to left, top to bottom
+    for(let r=1; r<=rows; r++){
+      for(let c=cols; c>=1; c--){
+        positions.push([r, c]);
+      }
+    }
+  }else if(orderType === "snake"){
+    // Snake pattern: left-right on odd rows, right-left on even rows
+    for(let r=1; r<=rows; r++){
+      if(r % 2 === 1){
+        // Odd row: left to right
+        for(let c=1; c<=cols; c++){
+          positions.push([r, c]);
+        }
+      }else{
+        // Even row: right to left
+        for(let c=cols; c>=1; c--){
+          positions.push([r, c]);
+        }
+      }
+    }
+  }else if(orderType === "snake-reverse"){
+    // Snake reverse pattern: right-left on odd rows, left-right on even rows
+    for(let r=1; r<=rows; r++){
+      if(r % 2 === 1){
+        // Odd row: right to left
+        for(let c=cols; c>=1; c--){
+          positions.push([r, c]);
+        }
+      }else{
+        // Even row: left to right
+        for(let c=1; c<=cols; c++){
+          positions.push([r, c]);
+        }
+      }
+    }
+  }else if(orderType === "col"){
+    // Top to bottom, left to right (按列)
+    for(let c=1; c<=cols; c++){
+      for(let r=1; r<=rows; r++){
+        positions.push([r, c]);
+      }
+    }
+  }else if(orderType === "col-reverse"){
+    // Bottom to top, left to right (按列倒排)
+    for(let c=1; c<=cols; c++){
+      for(let r=rows; r>=1; r--){
+        positions.push([r, c]);
+      }
+    }
+  }else if(orderType === "col-snake"){
+    // Column snake pattern: top-bottom on odd cols, bottom-top on even cols
+    for(let c=1; c<=cols; c++){
+      if(c % 2 === 1){
+        // Odd column: top to bottom
+        for(let r=1; r<=rows; r++){
+          positions.push([r, c]);
+        }
+      }else{
+        // Even column: bottom to top
+        for(let r=rows; r>=1; r--){
+          positions.push([r, c]);
+        }
+      }
+    }
+  }
+
+  // Reverse positions if descending (工位号从大到小)
+  if(isDescending){
+    positions.reverse();
+  }
+
+  // Assign seat numbers based on positions
+  let localIdx = 1;
+  let globalIdx = startIdx;
+
+  for(const [r, c] of positions){
+    if(localIdx > total) break;
+
+    const seatNo = pad3(globalIdx);
+    const seatId = `${zone.id}::${seatNo}`;
+
+    if(!state.seats[seatId]){
+      state.seats[seatId] = {
+        zoneId: zone.id,
+        seatNo,
+        globalIdx,
+        localIdx,
+        r,
+        c,
+        person: { name:"", dept:"", empId:"", phone:"", note:"" },
+        updatedAt: ""
+      };
+    }else{
+      // ⭐ 修复：如果工位来自服务器（有_id），保留服务器的工位号和全局索引
+      // 只有本地创建的工位（没有_id）才重新计算编号
+      const seat = state.seats[seatId];
+      if (!seat._id) {
+        // 本地创建的工位，更新编号
+        seat.seatNo = seatNo;
+        seat.globalIdx = globalIdx;
+      }
+      // 更新位置信息（这些可能因为zone的rows/cols改变而变化）
+      seat.localIdx = localIdx;
+      seat.r = r;
+      seat.c = c;
+      seat.zoneId = zone.id;
+    }
+
+    // ⭐ 修复：确保使用正确的 seatId 格式，不被服务器返回的旧值覆盖
+    seats.push({ ...state.seats[seatId], seatId });
+    localIdx++;
+    globalIdx++;
+  }
+
+  return seats;
+}
+
+// Build all seats with global numbering
+// ⭐ 前端简化：按顺序分配编号，不做回收
+// 编号回收在服务器端进行，保存到服务器后会自动重新分配
+function buildAllSeats(){
+  // 找到全局最大的 globalIdx
+  let maxGlobalIdx = 0;
+  Object.values(state.seats).forEach(seat => {
+    if (seat.globalIdx > maxGlobalIdx) {
+      maxGlobalIdx = seat.globalIdx;
+    }
+  });
+
+  console.log(`[buildAllSeats] 当前最大 globalIdx: ${maxGlobalIdx}`);
+
+  // 从最大索引+1开始为新区域分配工位号（前端临时分配）
+  let nextGlobalIdx = maxGlobalIdx + 1;
+
+  state.zones.forEach(zone => {
+    // ⭐ 功能区域不创建工位
+    if (zone.type === 'function') {
+      console.log(`[buildAllSeats] 区域 "${zone.name}" 是功能区域，跳过工位生成`);
+      return;
+    }
+
+    // 检查该区域是否已有工位（来自服务器）
+    const hasExistingSeats = Object.values(state.seats).some(
+      s => s.zoneId === zone.id
+    );
+
+    if (hasExistingSeats) {
+      // 已有工位，跳过
+      console.log(`[buildAllSeats] 区域 "${zone.name}" 已有工位，跳过生成`);
+    } else {
+      // 新区域，生成工位（临时编号，保存到服务器后会重新分配）
+      console.log(`[buildAllSeats] 区域 "${zone.name}" 生成工位，起始索引: ${nextGlobalIdx}`);
+      buildSeatsForZone(zone, nextGlobalIdx);
+      nextGlobalIdx += zone.count;
+    }
+  });
+}
+
+// Hit test: which zone is at (x, y)?
+function getZoneAtPoint(x, y) {
+  for(let i=state.zones.length-1; i>=0; i--){
+    const z = state.zones[i];
+    if(x >= z.x && x <= z.x + z.width && y >= z.y && y <= z.y + z.height){
+      return z;
+    }
+  }
+  return null;
+}
+
+// Check if point is on resize handle
+function getResizeHandle(zone, x, y) {
+  const handles = [
+    { name: 'nw', x: zone.x, y: zone.y },
+    { name: 'n', x: zone.x + zone.width/2, y: zone.y },
+    { name: 'ne', x: zone.x + zone.width, y: zone.y },
+    { name: 'e', x: zone.x + zone.width, y: zone.y + zone.height/2 },
+    { name: 'se', x: zone.x + zone.width, y: zone.y + zone.height },
+    { name: 's', x: zone.x + zone.width/2, y: zone.y + zone.height },
+    { name: 'sw', x: zone.x, y: zone.y + zone.height },
+    { name: 'w', x: zone.x, y: zone.y + zone.height/2 }
+  ];
+
+  for(const h of handles){
+    if(Math.abs(x - h.x) <= 6 && Math.abs(y - h.y) <= 6){
+      return h.name;
+    }
+  }
+  return null;
+}
+
+// Draw everything
+function draw(){
+  ctx.fillStyle = "#1a2332";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Draw zones
+  state.zones.forEach(zone => {
+    const isSelected = zone.id === selectedZoneId;
+
+    // Draw rectangle
+    ctx.fillStyle = zone.color || "#6366f1";
+    ctx.globalAlpha = isSelected ? 0.3 : 0.15;
+    ctx.fillRect(zone.x, zone.y, zone.width, zone.height);
+    ctx.globalAlpha = 1;
+
+    // Draw border
+    ctx.strokeStyle = zone.color || "#6366f1";
+    ctx.lineWidth = isSelected ? 3 : 1;
+    ctx.strokeRect(zone.x, zone.y, zone.width, zone.height);
+
+    // Draw label
+    ctx.fillStyle = zone.color || "#6366f1";
+    ctx.font = "bold 14px Arial";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "top";
+    ctx.fillText(zone.name, zone.x + 8, zone.y + 8);
+
+    ctx.font = "12px Arial";
+    ctx.fillStyle = "#9fb0d6";
+    const typeLabel = zone.type === 'function' ? '功能区域' : `座位区域 · ${zone.count}座`;
+    ctx.fillText(`${zone.code} · ${typeLabel}`, zone.x + 8, zone.y + 26);
+
+    // Draw seats grid inside zone (仅对座位区域)
+    if (zone.type !== 'function') {
+      drawSeatsInZone(zone);
+    }
+
+    // Draw control points if selected
+    if(isSelected){
+      const points = [
+        [zone.x, zone.y],
+        [zone.x + zone.width/2, zone.y],
+        [zone.x + zone.width, zone.y],
+        [zone.x + zone.width, zone.y + zone.height/2],
+        [zone.x + zone.width, zone.y + zone.height],
+        [zone.x + zone.width/2, zone.y + zone.height],
+        [zone.x, zone.y + zone.height],
+        [zone.x, zone.y + zone.height/2]
+      ];
+
+      ctx.fillStyle = "#6366f1";
+      points.forEach(([px, py]) => {
+        ctx.fillRect(px - 4, py - 4, 8, 8);
+      });
+    }
+  });
+
+  // Draw preview while drawing
+  if(isDrawing && drawStart){
+    const currentMouse = canvas.mouse || {x: drawStart.x, y: drawStart.y};
+
+    // 限制鼠标位置在画布范围内
+    const clampedMouseX = Math.max(0, Math.min(canvas.width, currentMouse.x));
+    const clampedMouseY = Math.max(0, Math.min(canvas.height, currentMouse.y));
+
+    const x = Math.max(0, Math.min(drawStart.x, clampedMouseX));
+    const y = Math.max(0, Math.min(drawStart.y, clampedMouseY));
+    const w = Math.abs(clampedMouseX - drawStart.x);
+    const h = Math.abs(clampedMouseY - drawStart.y);
+
+    // 确保预览区域不超出画布
+    const previewWidth = Math.min(w, canvas.width - x);
+    const previewHeight = Math.min(h, canvas.height - y);
+
+    ctx.fillStyle = "rgba(99, 102, 241, 0.1)";
+    ctx.fillRect(x, y, previewWidth, previewHeight);
+    ctx.strokeStyle = "rgba(99, 102, 241, 0.5)";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x, y, previewWidth, previewHeight);
+
+    // 显示尺寸提示
+    ctx.fillStyle = "rgba(99, 102, 241, 0.9)";
+    ctx.font = "12px Arial";
+    ctx.fillText(`${Math.round(previewWidth)} × ${Math.round(previewHeight)}`, x + 5, y + 15);
+  }
+}
+
+// Draw seats grid inside a zone
+function drawSeatsInZone(zone){
+  // ⭐ 功能区域不绘制工位
+  if (zone.type === 'function') return;
+
+  const rows = zone.rows;
+  const cols = zone.cols;
+
+  // Calculate padding and available space
+  const padding = 45; // Leave space for labels
+  const availableWidth = zone.width - padding * 2;
+  const availableHeight = zone.height - padding * 2;
+
+  if(availableWidth < 10 || availableHeight < 10) return; // Too small
+
+  // Calculate cell size
+  const cellWidth = availableWidth / cols;
+  const cellHeight = availableHeight / rows;
+  const cellSize = Math.min(cellWidth, cellHeight);
+
+  // Only draw if cells are large enough
+  if(cellSize < 3) return;
+
+  // ⭐ 修复：直接使用现有工位数据
+  const seats = getZoneSeatsAsGrid(zone);
+
+  const seatMap = {};
+  seats.forEach(s => {
+    const key = `${s.r}-${s.c}`;
+    seatMap[key] = s;
+  });
+
+  // Starting position
+  const startX = zone.x + padding;
+  const startY = zone.y + padding;
+
+  // Draw grid cells
+  for(let r = 1; r <= rows; r++){
+    for(let c = 1; c <= cols; c++){
+      const x = startX + (c - 1) * cellSize;
+      const y = startY + (r - 1) * cellSize;
+
+      const key = `${r}-${c}`;
+      const seat = seatMap[key];
+
+      if(seat){
+        const occupied = (seat.person?.name || "").trim() !== "";
+
+        // Draw cell background
+        if(occupied){
+          ctx.fillStyle = "rgba(34, 197, 94, 0.3)";
+        }else{
+          ctx.fillStyle = "rgba(255, 255, 255, 0.05)";
+        }
+        ctx.fillRect(x, y, cellSize - 1, cellSize - 1);
+
+        // Draw cell border
+        ctx.strokeStyle = occupied ? "rgba(34, 197, 94, 0.5)" : "rgba(255, 255, 255, 0.15)";
+        ctx.lineWidth = 0.5;
+        ctx.strokeRect(x, y, cellSize - 1, cellSize - 1);
+
+        // Draw seat number if cell is large enough
+        if(cellSize >= 15){
+          ctx.fillStyle = occupied ? "#22c55e" : "#9fb0d6";
+          ctx.font = `${Math.min(10, cellSize / 3)}px Arial`;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          // ⭐ 处理 seatNo 为空的情况，显示 "-"
+          const displayText = seat.seatNo || '-';
+          ctx.fillText(displayText, x + cellSize / 2, y + cellSize / 2);
+        }
+      }else{
+        // Empty cell
+        ctx.fillStyle = "rgba(0, 0, 0, 0.1)";
+        ctx.fillRect(x, y, cellSize - 1, cellSize - 1);
+      }
+    }
+  }
+}
+
+// Canvas Events
+canvas.addEventListener("mousedown", (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const x = (e.clientX - rect.left) / zoom;
+  const y = (e.clientY - rect.top) / zoom;
+
+  if(isDrawing){
+    drawStart = {x, y};
+  }else if(selectedZoneId){
+    const zone = getZone(selectedZoneId);
+    if(zone){
+      const handle = getResizeHandle(zone, x, y);
+      if(handle){
+        isResizing = true;
+        resizeHandle = handle;
+        dragStart = {x, y, zone: JSON.parse(JSON.stringify(zone))};
+        return;
+      }else if(x >= zone.x && x <= zone.x + zone.width && y >= zone.y && y <= zone.y + zone.height){
+        isDragging = true;
+        dragStart = {x, y, zoneX: zone.x, zoneY: zone.y};
+        return;
+      }
+    }
+  }
+
+  // Click on zone to show grid modal
+  if(!isDrawing){
+    const zone = getZoneAtPoint(x, y);
+    if(zone){
+      selectedZoneId = zone.id;
+      showSeatsGridModal(zone.id);
+      renderAll();
+    }else{
+      selectedZoneId = null;
+      renderAll();
+    }
+  }
+});
+
+canvas.addEventListener("mousemove", (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const x = (e.clientX - rect.left) / zoom;
+  const y = (e.clientY - rect.top) / zoom;
+
+  canvas.mouse = {x, y};
+
+  // Handle zone dragging
+  if(isDragging && dragStart && selectedZoneId){
+    const zone = getZone(selectedZoneId);
+    if(zone){
+      const dx = x - dragStart.x;
+      const dy = y - dragStart.y;
+      zone.x = Math.max(0, Math.min(canvas.width - zone.width, dragStart.zoneX + dx));
+      zone.y = Math.max(0, Math.min(canvas.height - zone.height, dragStart.zoneY + dy));
+      draw();
+      document.getElementById("toolbarStatus").textContent = `移动区域：${zone.name}`;
+    }
+  }
+
+  // Handle zone resizing
+  else if(isResizing && dragStart && selectedZoneId && resizeHandle){
+    const zone = getZone(selectedZoneId);
+    if(zone){
+      const dx = x - dragStart.x;
+      const dy = y - dragStart.y;
+      const orig = dragStart.zone;
+
+      switch(resizeHandle){
+        case 'nw':
+          zone.x = Math.max(0, Math.min(orig.x + dx, orig.x + orig.width - 20));
+          zone.y = Math.max(0, Math.min(orig.y + dy, orig.y + orig.height - 20));
+          zone.width = orig.width - (zone.x - orig.x);
+          zone.height = orig.height - (zone.y - orig.y);
+          break;
+        case 'n':
+          zone.y = Math.max(0, Math.min(orig.y + dy, orig.y + orig.height - 20));
+          zone.height = orig.height - (zone.y - orig.y);
+          break;
+        case 'ne':
+          zone.y = Math.max(0, Math.min(orig.y + dy, orig.y + orig.height - 20));
+          zone.width = Math.min(canvas.width - zone.x, Math.max(20, orig.width + dx));
+          zone.height = orig.height - (zone.y - orig.y);
+          break;
+        case 'e':
+          zone.width = Math.min(canvas.width - zone.x, Math.max(20, orig.width + dx));
+          break;
+        case 'se':
+          zone.width = Math.min(canvas.width - zone.x, Math.max(20, orig.width + dx));
+          zone.height = Math.min(canvas.height - zone.y, Math.max(20, orig.height + dy));
+          break;
+        case 's':
+          zone.height = Math.min(canvas.height - zone.y, Math.max(20, orig.height + dy));
+          break;
+        case 'sw':
+          zone.x = Math.max(0, Math.min(orig.x + dx, orig.x + orig.width - 20));
+          zone.width = orig.width - (zone.x - orig.x);
+          zone.height = Math.min(canvas.height - zone.y, Math.max(20, orig.height + dy));
+          break;
+        case 'w':
+          zone.x = Math.max(0, Math.min(orig.x + dx, orig.x + orig.width - 20));
+          zone.width = orig.width - (zone.x - orig.x);
+          break;
+      }
+      draw();
+      document.getElementById("toolbarStatus").textContent = `调整大小：${zone.name}`;
+    }
+  }
+
+  // Update cursor
+  else if(selectedZoneId && !isDrawing){
+    const zone = getZone(selectedZoneId);
+    if(zone){
+      const handle = getResizeHandle(zone, x, y);
+      if(handle){
+        const cursors = {
+          'nw': 'nw-resize', 'n': 'n-resize', 'ne': 'ne-resize',
+          'e': 'e-resize', 'se': 'se-resize', 's': 's-resize',
+          'sw': 'sw-resize', 'w': 'w-resize'
+        };
+        canvas.style.cursor = cursors[handle];
+      }else if(x >= zone.x && x <= zone.x + zone.width && y >= zone.y && y <= zone.y + zone.height){
+        canvas.style.cursor = 'move';
+      }else{
+        canvas.style.cursor = 'default';
+      }
+    }
+  }else{
+    canvas.style.cursor = isDrawing ? 'crosshair' : 'default';
+  }
+
+  draw();
+});
+
+canvas.addEventListener("mouseup", (e) => {
+  if(isDrawing && drawStart){
+    const rect = canvas.getBoundingClientRect();
+    const endX = (e.clientX - rect.left) / zoom;
+    const endY = (e.clientY - rect.top) / zoom;
+
+    // 限制在画布范围内
+    const clampedEndX = Math.max(0, Math.min(canvas.width, endX));
+    const clampedEndY = Math.max(0, Math.min(canvas.height, endY));
+
+    const x = Math.max(0, Math.min(drawStart.x, clampedEndX));
+    const y = Math.max(0, Math.min(drawStart.y, clampedEndY));
+    const w = Math.abs(clampedEndX - drawStart.x);
+    const h = Math.abs(clampedEndY - drawStart.y);
+
+    // 确保区域不超出画布边界
+    const finalWidth = Math.min(w, canvas.width - x);
+    const finalHeight = Math.min(h, canvas.height - y);
+
+    if(finalWidth > 20 && finalHeight > 20){
+      // 生成唯一的区域代码
+      const timestamp = Date.now().toString().slice(-6);
+      const uniqueCode = "Z" + timestamp;
+
+      const newZone = {
+        id: uid("zone"),
+        name: "新区域",
+        code: uniqueCode,
+        type: "seat", // 默认为座位区域
+        x: Math.round(x),
+        y: Math.round(y),
+        width: Math.round(finalWidth),
+        height: Math.round(finalHeight),
+        count: 100,
+        rows: 10,
+        cols: 10,
+        order: "row",
+        color: "#6366f1"
+      };
+      state.zones.push(newZone);
+      selectedZoneId = newZone.id;
+      isDrawing = false;
+      buildAllSeats();
+      saveState();
+      renderAll();
+      showZoneConfig(newZone.id);
+    }
+
+    isDrawing = false;
+    drawStart = null;
+    document.getElementById("toolbarStatus").textContent = "就绪";
+  }
+
+  if(isDragging || isResizing){
+    // ⭐ 同步到服务器（全量覆盖）
+    const zone = getZone(selectedZoneId);
+    if (zone && zone._id && USE_API) {
+      // 异步保存到服务器
+      (async () => {
+        try {
+          console.log('⏳ 同步区域到服务器（全量更新）...');
+          await api.updateZone(zone._id, {
+            // 全量覆盖所有字段
+            name: zone.name,
+            code: zone.code,
+            type: zone.type || 'seat',
+            x: zone.x,
+            y: zone.y,
+            width: zone.width,
+            height: zone.height,
+            count: zone.count,
+            rows: zone.rows,
+            cols: zone.cols,
+            order: zone.order,
+            color: zone.color,
+            rebuildSeats: false  // 仅更新位置和尺寸，不重建工位
+          });
+
+          console.log('✓ 区域已同步到服务器');
+          showNotification('区域已更新', 'success');
+        } catch (error) {
+          console.error('✗ 同步失败:', error.message);
+          showNotification('区域更新失败，已保存到本地', 'warn');
+
+          // 添加到离线队列（全量数据）
+          if (syncClient && syncClient.addToOfflineQueue) {
+            syncClient.addToOfflineQueue({
+              type: 'zone',
+              data: {
+                _id: zone._id,
+                clientVersion: zone.version,
+                name: zone.name,
+                code: zone.code,
+                type: zone.type || 'seat',
+                x: zone.x,
+                y: zone.y,
+                width: zone.width,
+                height: zone.height,
+                count: zone.count,
+                rows: zone.rows,
+                cols: zone.cols,
+                order: zone.order,
+                color: zone.color,
+                type: zone.type || 'seat'
+              }
+            });
+          }
+        }
+      })();
+    }
+
+    saveState();
+    renderAll();
+  }
+
+  isDragging = false;
+  isResizing = false;
+  dragStart = null;
+  resizeHandle = null;
+  document.getElementById("toolbarStatus").textContent = "就绪";
+});
+
+// UI Events
+document.getElementById("btnAddZone").onclick = () => {
+  isDrawing = true;
+  drawStart = null;
+  document.getElementById("toolbarStatus").textContent = "💬 在画布上拖拽绘制新区域...";
+};
+
+// ⭐ 楼层设置
+document.getElementById("btnFloorSettings").onclick = () => {
+  // 获取当前画布尺寸
+  document.getElementById("floorCanvasWidth").value = canvas.width;
+  document.getElementById("floorCanvasHeight").value = canvas.height;
+  document.getElementById("floorSettingsModal").classList.add("active");
+};
+
+document.getElementById("btnFloorCancel").onclick = () => {
+  document.getElementById("floorSettingsModal").classList.remove("active");
+};
+
+document.getElementById("btnFloorSave").onclick = async () => {
+  const newWidth = parseInt(document.getElementById("floorCanvasWidth").value);
+  const newHeight = parseInt(document.getElementById("floorCanvasHeight").value);
+
+  if (newWidth < 800 || newHeight < 600) {
+    alert("画布尺寸过小！最小尺寸为 800x600");
+    return;
+  }
+
+  try {
+    if (USE_API) {
+      // 调用API更新楼层信息
+      const floorId = state.floorId || 'floor_d8';
+      await api.updateFloor(floorId, {
+        canvasWidth: newWidth,
+        canvasHeight: newHeight
+      });
+
+      showNotification('楼层设置已更新，正在刷新页面...', 'success');
+
+      // 延迟刷新，让用户看到成功提示
+      setTimeout(() => {
+        location.reload();
+      }, 1000);
+    } else {
+      // 本地模式直接更新
+      canvas.width = newWidth;
+      canvas.height = newHeight;
+      document.getElementById("floorSettingsModal").classList.remove("active");
+      renderAll();
+      showNotification('画布尺寸已更新', 'success');
+    }
+  } catch (error) {
+    console.error('更新楼层设置失败:', error);
+    showNotification('更新失败: ' + error.message, 'error');
+  }
+};
+
+// ==================== 批量导入网络接口IP ====================
+let networkIPData = [];
+
+document.getElementById("btnImportNetworkIP").onclick = () => {
+  // 重置状态
+  networkIPData = [];
+  document.getElementById("networkIPFileInput").value = "";
+  document.getElementById("networkIPPreview").style.display = "none";
+  document.getElementById("networkIPStatus").style.display = "none";
+  document.getElementById("btnNetworkIPImport").disabled = true;
+
+  // 显示模态框
+  document.getElementById("networkIPImportModal").classList.add("active");
+};
+
+document.getElementById("btnNetworkIPCancel").onclick = () => {
+  document.getElementById("networkIPImportModal").classList.remove("active");
+};
+
+// 下载模板
+document.getElementById("btnNetworkIPDownloadTemplate").onclick = () => {
+  const template = [
+    ['interfaceS', 'ipS', 'interfaceW', 'ipW'],
+    ['S001', '10.148.60.11', 'W001', '192.168.81.1'],
+    ['S002', '10.148.60.12', 'W002', '192.168.81.2'],
+    ['S003', '10.148.60.13', 'W003', '192.168.81.3']
+  ];
+
+  // 创建CSV内容
+  const csvContent = template.map(row => row.join(',')).join('\n');
+  const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = '网络接口IP导入模板.csv';
+  link.click();
+
+  showNotification('模板已下载', 'success');
+};
+
+// 文件选择处理
+document.getElementById("networkIPFileInput").onchange = async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const statusDiv = document.getElementById("networkIPStatus");
+  const statusText = document.getElementById("networkIPStatusText");
+  const previewDiv = document.getElementById("networkIPPreview");
+  const previewContent = document.getElementById("networkIPPreviewContent");
+
+  try {
+    statusDiv.style.display = "block";
+    statusText.innerHTML = '<span style="color: var(--primary);">⏳ 正在解析文件...</span>';
+
+    let data = [];
+    const fileName = file.name.toLowerCase();
+
+    if (fileName.endsWith('.csv')) {
+      // 解析CSV
+      const text = await file.text();
+      const lines = text.split('\n').map(line => line.trim()).filter(line => line);
+
+      if (lines.length < 2) {
+        throw new Error('CSV文件为空或格式不正确');
+      }
+
+      const headers = lines[0].split(',').map(h => h.trim());
+      const requiredHeaders = ['interfaceS', 'ipS', 'interfaceW', 'ipW'];
+
+      // 检查必需的列
+      const missingHeaders = requiredHeaders.filter(h => !headers.includes(h));
+      if (missingHeaders.length > 0) {
+        throw new Error(`缺少必需的列: ${missingHeaders.join(', ')}`);
+      }
+
+      // 解析数据行
+      for (let i = 1; i < lines.length; i++) {
+        const values = lines[i].split(',').map(v => v.trim());
+        const row = {};
+        headers.forEach((header, index) => {
+          row[header] = values[index] || '';
+        });
+
+        // 至少要有一个接口编号
+        if (row.interfaceS || row.interfaceW) {
+          data.push(row);
+        }
+      }
+
+    } else if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
+      // 解析Excel - 需要XLSX库
+      if (typeof XLSX === 'undefined') {
+        throw new Error('XLSX库未加载，无法解析Excel文件。请使用CSV格式。');
+      }
+
+      const arrayBuffer = await file.arrayBuffer();
+      const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+      const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+      const jsonData = XLSX.utils.sheet_to_json(firstSheet);
+
+      const requiredHeaders = ['interfaceS', 'ipS', 'interfaceW', 'ipW'];
+
+      jsonData.forEach(row => {
+        // 至少要有一个接口编号
+        if (row.interfaceS || row.interfaceW) {
+          data.push({
+            interfaceS: (row.interfaceS || '').toString().trim(),
+            ipS: (row.ipS || '').toString().trim(),
+            interfaceW: (row.interfaceW || '').toString().trim(),
+            ipW: (row.ipW || '').toString().trim()
+          });
+        }
+      });
+
+    } else {
+      throw new Error('不支持的文件格式，请使用 .csv, .xlsx 或 .xls 文件');
+    }
+
+    if (data.length === 0) {
+      throw new Error('没有找到有效的数据行');
+    }
+
+    networkIPData = data;
+
+    // 显示预览
+    const previewHTML = data.slice(0, 5).map((row, index) => `
+      <div style="margin-bottom: 8px; padding: 6px; background: rgba(255,255,255,0.03); border-radius: 3px;">
+        <strong>#${index + 1}</strong>:
+        S接口: ${row.interfaceS || '-'} → ${row.ipS || '-'} |
+        W接口: ${row.interfaceW || '-'} → ${row.ipW || '-'}
+      </div>
+    `).join('');
+
+    previewContent.innerHTML = previewHTML;
+    previewDiv.style.display = "block";
+
+    statusText.innerHTML = `<span style="color: var(--ok);">✓ 成功解析 ${data.length} 条记录</span>`;
+    document.getElementById("btnNetworkIPImport").disabled = false;
+
+  } catch (error) {
+    console.error('文件解析失败:', error);
+    statusText.innerHTML = `<span style="color: var(--bad);">❌ ${error.message}</span>`;
+    previewDiv.style.display = "none";
+    document.getElementById("btnNetworkIPImport").disabled = true;
+  }
+};
+
+// 执行导入
+document.getElementById("btnNetworkIPImport").onclick = async () => {
+  if (networkIPData.length === 0) {
+    alert('没有可导入的数据');
+    return;
+  }
+
+  const statusDiv = document.getElementById("networkIPStatus");
+  const statusText = document.getElementById("networkIPStatusText");
+
+  if (!confirm(`确定要导入 ${networkIPData.length} 条网络接口IP记录吗？\n\n系统将根据接口编号匹配工位并更新IP地址。`)) {
+    return;
+  }
+
+  try {
+    statusText.innerHTML = '<span style="color: var(--primary);">⏳ 正在导入...</span>';
+    document.getElementById("btnNetworkIPImport").disabled = true;
+
+    let successCount = 0;
+    let failCount = 0;
+    const errors = [];
+
+    // 遍历所有工位，匹配接口编号并更新IP
+    for (const seatId in state.seats) {
+      const seat = state.seats[seatId];
+      if (!seat || !seat.network) continue;
+
+      let updated = false;
+      const updates = {};
+
+      // 查找匹配的S接口
+      if (seat.network.interfaceS) {
+        const match = networkIPData.find(row =>
+          row.interfaceS === seat.network.interfaceS
+        );
+        if (match && match.ipS) {
+          updates.ipS = match.ipS;
+          updated = true;
+        }
+      }
+
+      // 查找匹配的W接口
+      if (seat.network.interfaceW) {
+        const match = networkIPData.find(row =>
+          row.interfaceW === seat.network.interfaceW
+        );
+        if (match && match.ipW) {
+          updates.ipW = match.ipW;
+          updated = true;
+        }
+      }
+
+      // 如果有更新，保存到服务器
+      if (updated) {
+        try {
+          if (USE_API && seat._id) {
+            const networkUpdates = {
+              ...seat.network,
+              ...updates
+            };
+
+            await api.updateSeat(seat._id, { network: networkUpdates });
+
+            // 更新本地数据
+            seat.network = networkUpdates;
+          } else {
+            // 本地模式，直接更新
+            seat.network = {
+              ...seat.network,
+              ...updates
+            };
+          }
+
+          successCount++;
+        } catch (error) {
+          console.error(`更新工位 ${seat.seatNo || seatId} 失败:`, error);
+          failCount++;
+          errors.push(`${seat.seatNo || seatId}: ${error.message}`);
+        }
+      }
+    }
+
+    // 保存本地状态
+    saveState();
+    renderAll();
+
+    // 显示结果
+    if (failCount === 0) {
+      statusText.innerHTML = `<span style="color: var(--ok);">✓ 导入成功！更新了 ${successCount} 个工位的网络IP</span>`;
+      showNotification(`成功导入 ${successCount} 条网络IP记录`, 'success');
+
+      setTimeout(() => {
+        document.getElementById("networkIPImportModal").classList.remove("active");
+      }, 2000);
+    } else {
+      statusText.innerHTML = `
+        <span style="color: var(--warn);">
+          ⚠️ 部分导入成功<br>
+          成功: ${successCount} 个 | 失败: ${failCount} 个<br>
+          ${errors.slice(0, 3).join('<br>')}
+          ${errors.length > 3 ? `<br>... 还有 ${errors.length - 3} 个错误` : ''}
+        </span>
+      `;
+      showNotification(`导入完成，成功 ${successCount} 个，失败 ${failCount} 个`, 'warn');
+    }
+
+    document.getElementById("btnNetworkIPImport").disabled = false;
+
+  } catch (error) {
+    console.error('导入失败:', error);
+    statusText.innerHTML = `<span style="color: var(--bad);">❌ 导入失败: ${error.message}</span>`;
+    document.getElementById("btnNetworkIPImport").disabled = false;
+    showNotification('导入失败: ' + error.message, 'error');
+  }
+};
+
+// ==================== 导出网口IP信息 ====================
+document.getElementById("btnExportNetworkIP").onclick = () => {
+  try {
+    // 检查XLSX库是否加载
+    if (typeof XLSX === 'undefined') {
+      alert('XLSX库未加载，无法导出Excel文件');
+      return;
+    }
+
+    // 收集所有工位的网口IP信息
+    const exportData = [];
+
+    // 添加表头
+    exportData.push([
+      '工位编号',
+      '姓名',
+      '部门/项目组',
+      'S接口编号',
+      'S接口IP',
+      'W接口编号',
+      'W接口IP',
+      '备注'
+    ]);
+
+    // 遍历所有工位
+    const seats = Object.values(state.seats);
+
+    if (seats.length === 0) {
+      alert('当前没有工位数据可导出');
+      return;
+    }
+
+    // 按工位编号排序
+    seats.sort((a, b) => {
+      const noA = a.seatNo || '';
+      const noB = b.seatNo || '';
+      return noA.localeCompare(noB);
+    });
+
+    // 添加数据行
+    seats.forEach(seat => {
+      const person = seat.person || {};
+      const network = seat.network || {};
+      exportData.push([
+        seat.seatNo || '',
+        person.name || '',
+        person.dept || '',
+        network.interfaceS || '',
+        network.ipS || '',
+        network.interfaceW || '',
+        network.ipW || '',
+        person.note || ''
+      ]);
+    });
+
+    // 创建工作簿
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(exportData);
+
+    // 设置列宽
+    ws['!cols'] = [
+      { wch: 12 },  // 工位编号
+      { wch: 10 },  // 姓名
+      { wch: 15 },  // 部门
+      { wch: 12 },  // S接口编号
+      { wch: 18 },  // S接口IP
+      { wch: 12 },  // W接口编号
+      { wch: 18 },  // W接口IP
+      { wch: 20 }   // 备注
+    ];
+
+    // 添加工作表到工作簿
+    XLSX.utils.book_append_sheet(wb, ws, '网口IP信息');
+
+    // 生成文件名（包含当前日期时间）
+    const now = new Date();
+    const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '');
+    const timeStr = now.toTimeString().slice(0, 5).replace(/:/g, '');
+    const fileName = `网口IP信息_${dateStr}_${timeStr}.xlsx`;
+
+    // 导出文件
+    XLSX.writeFile(wb, fileName);
+
+    showNotification(`成功导出 ${seats.length} 个工位的网口IP信息`, 'success');
+
+  } catch (error) {
+    console.error('导出失败:', error);
+    alert('导出失败: ' + error.message);
+  }
+};
+
+document.getElementById("btnZoomIn").onclick = () => {
+  zoom = Math.min(2, zoom + 0.2);
+  canvas.style.transform = `scale(${zoom})`;
+  canvas.style.transformOrigin = "0 0";
+};
+
+document.getElementById("btnZoomOut").onclick = () => {
+  zoom = Math.max(0.5, zoom - 0.2);
+  canvas.style.transform = `scale(${zoom})`;
+  canvas.style.transformOrigin = "0 0";
+};
+
+document.getElementById("btnZoomReset").onclick = () => {
+  zoom = 1;
+  canvas.style.transform = "scale(1)";
+};
+
+// Zoom reset on init
+canvas.style.transformOrigin = "0 0";
+
+// Zone Config Modal
+function showZoneConfig(zoneId){
+  const zone = getZone(zoneId);
+  if(!zone) return;
+
+  document.getElementById("cfgName").value = zone.name;
+  document.getElementById("cfgCode").value = zone.code;
+  document.getElementById("cfgColor").value = zone.color || "#6366f1";
+  document.getElementById("cfgType").value = zone.type || "seat";
+  document.getElementById("cfgCount").value = zone.count;
+  document.getElementById("cfgRows").value = zone.rows;
+  document.getElementById("cfgCols").value = zone.cols;
+  document.getElementById("cfgOrder").value = zone.order;
+  document.getElementById("cfgStartNumber").value = 1; // 默认从1开始
+
+  // 如果是编辑现有区域（有_id），显示起始编号选项
+  if (zone._id) {
+    document.getElementById("startNumberContainer").style.display = "block";
+  } else {
+    document.getElementById("startNumberContainer").style.display = "none";
+  }
+
+  // 显示现有图片
+  const previewContainer = document.getElementById("zoneImagePreview");
+  const previewImg = document.getElementById("zoneImagePreviewImg");
+  const fileInput = document.getElementById("zoneImageFile");
+
+  if (zone.image) {
+    previewImg.src = zone.image;
+    previewContainer.style.display = "block";
+  } else {
+    previewContainer.style.display = "none";
+  }
+
+  // 清空文件选择
+  fileInput.value = "";
+
+  // 根据类型显示/隐藏工位字段
+  toggleZoneTypeFields();
+
+  document.getElementById("zoneConfigModal").classList.add("active");
+}
+
+function toggleZoneTypeFields() {
+  const zoneType = document.getElementById("cfgType").value;
+  const seatFieldsContainer = document.getElementById("seatFieldsContainer");
+
+  if (zoneType === "function") {
+    seatFieldsContainer.style.display = "none";
+  } else {
+    seatFieldsContainer.style.display = "block";
+  }
+}
+
+function hideZoneConfig(){
+  document.getElementById("zoneConfigModal").classList.remove("active");
+}
+
+document.getElementById("btnCfgCancel").onclick = hideZoneConfig;
+
+// 图片文件选择预览
+document.getElementById("zoneImageFile").addEventListener("change", function(e) {
+  const file = e.target.files[0];
+  if (file) {
+    // 检查文件大小（最大5MB）
+    if (file.size > 5 * 1024 * 1024) {
+      showNotification('图片文件不能超过 5MB', 'error');
+      e.target.value = "";
+      return;
+    }
+
+    // 检查文件类型
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    if (!validTypes.includes(file.type)) {
+      showNotification('请选择有效的图片格式 (jpg, png, gif, webp)', 'error');
+      e.target.value = "";
+      return;
+    }
+
+    // 预览图片
+    const reader = new FileReader();
+    reader.onload = function(event) {
+      const previewImg = document.getElementById("zoneImagePreviewImg");
+      const previewContainer = document.getElementById("zoneImagePreview");
+      previewImg.src = event.target.result;
+      previewContainer.style.display = "block";
+    };
+    reader.readAsDataURL(file);
+  }
+});
+
+// 删除图片按钮
+document.getElementById("btnDeleteZoneImage").onclick = async function() {
+  if (!confirm("确定要删除这张图片吗？")) return;
+
+  const zone = getZone(selectedZoneId);
+  if (!zone) return;
+
+  try {
+    if (USE_API && zone._id) {
+      console.log('⏳ 删除区域图片...');
+      await api.deleteZoneImage(zone._id);
+      console.log('✓ 图片已删除');
+      showNotification('图片已删除', 'success');
+    }
+
+    // 更新本地数据
+    zone.image = null;
+
+    // 隐藏预览
+    const previewContainer = document.getElementById("zoneImagePreview");
+    previewContainer.style.display = "none";
+
+    // 清空文件选择
+    document.getElementById("zoneImageFile").value = "";
+
+    saveState();
+    renderAll();
+  } catch (error) {
+    console.error('删除图片失败:', error.message);
+    showNotification('删除图片失败: ' + error.message, 'error');
+  }
+};
+
+document.getElementById("btnCfgSave").onclick = async () => {
+  const zone = getZone(selectedZoneId);
+  if(!zone) return;
+
+  const zoneType = document.getElementById("cfgType").value;
+
+  const updates = {
+    name: document.getElementById("cfgName").value.trim() || zone.name,
+    code: (document.getElementById("cfgCode").value.trim() || zone.code).replace(/\s+/g, ""),
+    color: document.getElementById("cfgColor").value,
+    type: zoneType
+  };
+
+  // 只有座位区域才需要这些字段
+  if (zoneType === "seat") {
+    updates.count = Math.max(1, Number(document.getElementById("cfgCount").value) || 1);
+    updates.rows = Math.max(1, Number(document.getElementById("cfgRows").value) || 1);
+    updates.cols = Math.max(1, Number(document.getElementById("cfgCols").value) || 1);
+    updates.order = document.getElementById("cfgOrder").value;
+  } else {
+    // 功能区域，设置为null
+    updates.count = null;
+    updates.rows = null;
+    updates.cols = null;
+    updates.order = 'row';
+  }
+
+  // ⭐ 检测是否有配置改变需要重建工位（仅对座位区域）
+  const needsRebuild = zoneType === "seat" && (
+    updates.count !== zone.count ||
+    updates.rows !== zone.rows ||
+    updates.cols !== zone.cols ||
+    updates.order !== zone.order
+  );
+
+  // 获取起始编号（仅在重建工位时使用）
+  let startNumber = 1;
+  if (needsRebuild && zone._id) {
+    startNumber = Math.max(1, Number(document.getElementById("cfgStartNumber").value) || 1);
+  }
+
+  try {
+    if (USE_API) {
+      // 区分新建和更新两种情况
+      if (zone._id) {
+        // 更新现有区域
+        console.log('⏳ 保存区域到服务器...');
+        console.log('需要重建工位:', needsRebuild);
+        if (needsRebuild) {
+          console.log('起始编号:', startNumber);
+        }
+        const result = await api.updateZone(zone._id, {
+          ...updates,
+          rebuildSeats: needsRebuild,
+          startNumber: needsRebuild ? startNumber : undefined
+        });
+
+        // 更新本地版本号
+        if (result.zone && result.zone.version) {
+          zone.version = result.zone.version;
+          syncClient.clientVersions.zones[zone._id] = result.zone.version;
+        }
+
+        // ⭐ 如果重建了工位，需要从服务器重新获取工位数据
+        if (needsRebuild) {
+          console.log('⏳ 重建工位后，从服务器重新获取工位数据...');
+
+          // 清理该区域的旧工位
+          Object.keys(state.seats).forEach(seatId => {
+            if (state.seats[seatId].zoneId === zone.id || state.seats[seatId].zoneId === zone._id?.toString()) {
+              delete state.seats[seatId];
+            }
+          });
+
+          // 从服务器获取新的工位数据
+          try {
+            const seats = await api.getSeats();
+            const zoneSeats = seats.filter(s => s.zoneId.toString() === zone._id.toString());
+
+            console.log(`✓ 接收到 ${zoneSeats.length} 个重建的工位数据`);
+            zoneSeats.forEach(seat => {
+              const seatId = `${zone.id}::${seat.seatNo}`;
+              state.seats[seatId] = {
+                _id: seat._id,
+                seatId: seat._id.toString(),
+                zoneId: zone.id,
+                seatNo: seat.seatNo,
+                globalIdx: seat.globalIdx,
+                localIdx: seat.localIdx,
+                r: seat.r,
+                c: seat.c,
+                person: seat.person || { name: '', dept: '', empId: '', phone: '', note: '' },
+                network: seat.network || { interfaceS: '', interfaceW: '', ipS: '', ipW: '' },
+                version: seat.version,
+                createdAt: seat.createdAt,
+                updatedAt: seat.updatedAt
+              };
+              // 跟踪版本号
+              syncClient.clientVersions.seats[seat._id] = seat.version;
+            });
+          } catch (seatError) {
+            console.error('获取工位数据失败:', seatError);
+            showNotification('获取工位数据失败，请刷新页面', 'error');
+          }
+        }
+
+        console.log('✓ 区域已保存');
+        showNotification(`区域 "${updates.name}" 已更新`, 'success');
+      } else {
+        // 创建新区域
+        console.log('⏳ 创建区域到服务器...');
+        const oldZoneId = zone.id; // 保存旧的本地生成的zone.id
+        const result = await api.createZone({
+          ...updates,
+          x: zone.x,
+          y: zone.y,
+          width: zone.width,
+          height: zone.height
+        });
+
+        // 重要：用服务器返回的数据更新本地区域对象
+        zone._id = result.zone._id;
+        zone.version = result.zone.version;
+        zone.id = result.zone._id.toString();  // 保证 id 和 _id 同步
+        syncClient.clientVersions.zones[zone._id] = result.zone.version;
+
+        // ⭐ 修复：清理使用旧zone.id的工位（避免重复）
+        Object.keys(state.seats).forEach(seatId => {
+          if (seatId.startsWith(`${oldZoneId}::`)) {
+            delete state.seats[seatId];
+          }
+        });
+
+        // ⭐ 重要：处理服务器返回的工位数据
+        if (result.seats && result.seats.length > 0) {
+          console.log(`✓ 接收到 ${result.seats.length} 个工位数据`);
+          result.seats.forEach(seat => {
+            const seatId = `${zone.id}::${seat.seatNo}`;
+            state.seats[seatId] = {
+              _id: seat._id,
+              seatId: seat._id.toString(),
+              zoneId: zone.id,
+              seatNo: seat.seatNo,
+              globalIdx: seat.globalIdx,
+              localIdx: seat.localIdx,
+              r: seat.r,
+              c: seat.c,
+              person: seat.person || { name: '', dept: '', empId: '', phone: '', note: '' },
+              network: seat.network || { interfaceS: '', interfaceW: '', ipS: '', ipW: '' },
+              version: seat.version,
+              createdAt: seat.createdAt,
+              updatedAt: seat.updatedAt
+            };
+            // 跟踪版本号
+            syncClient.clientVersions.seats[seat._id] = seat.version;
+          });
+        }
+
+        console.log('✓ 区域已创建:', zone._id);
+        showNotification(`区域 "${updates.name}" 已创建`, 'success');
+      }
+
+      // 处理图片上传（如果用户选择了新图片）
+      const fileInput = document.getElementById("zoneImageFile");
+      if (fileInput.files && fileInput.files.length > 0 && zone._id) {
+        const file = fileInput.files[0];
+        try {
+          console.log('⏳ 上传区域图片...');
+          const imageData = await api.uploadZoneImage(zone._id, file);
+          if (imageData && imageData.imageUrl) {
+            zone.image = imageData.imageUrl;
+            console.log('✓ 图片已上传:', imageData.imageUrl);
+            showNotification('图片上传成功', 'success');
+          }
+        } catch (imageError) {
+          console.error('图片上传失败:', imageError.message);
+          showNotification('图片上传失败: ' + imageError.message, 'error');
+        }
+      }
+    }
+  } catch (error) {
+    console.error('API 保存失败，使用本地更新:', error.message);
+    showNotification('区域保存失败，已在本地更新', 'warn');
+
+    // 添加到离线队列
+    syncClient.addToOfflineQueue({
+      type: 'zone',
+      operation: zone._id ? 'update' : 'create',
+      data: {
+        _id: zone._id,
+        clientVersion: zone.version,
+        ...updates,
+        ...(zone._id ? {} : { x: zone.x, y: zone.y, width: zone.width, height: zone.height })
+      }
+    });
+  }
+
+  // 本地更新
+  zone.name = updates.name;
+  zone.code = updates.code;
+  zone.color = updates.color;
+  zone.count = updates.count;
+  zone.rows = updates.rows;
+  zone.cols = updates.cols;
+  zone.order = updates.order;
+
+  buildAllSeats();
+  saveState();
+  hideZoneConfig();
+  renderAll();
+};
+
+document.getElementById("btnCfgDelete").onclick = async () => {
+  if(!confirm("确定删除该区域及其所有工位吗？")) return;
+
+  const zone = getZone(selectedZoneId);
+  if(!zone) return;
+
+  try {
+    if (USE_API && zone._id) {
+      console.log('⏳ 删除区域...');
+      await api.deleteZone(zone._id);
+
+      // 从版本跟踪中移除
+      delete syncClient.clientVersions.zones[zone._id];
+
+      console.log('✓ 区域已删除');
+      showNotification(`区域 "${zone.name}" 已删除`, 'success');
+    }
+  } catch (error) {
+    console.error('API 删除失败，使用本地删除:', error.message);
+    showNotification('区域删除失败，已在本地删除', 'warn');
+
+    // 添加到离线队列（标记为删除）
+    syncClient.addToOfflineQueue({
+      type: 'zone',
+      operation: 'delete',
+      data: {
+        _id: zone._id,
+        clientVersion: zone.version
+      }
+    });
+  }
+
+  // 本地删除
+  // Remove zone
+  state.zones = state.zones.filter(z => z.id !== selectedZoneId);
+
+  // Remove seats
+  Object.keys(state.seats).forEach(seatId => {
+    if(state.seats[seatId].zoneId === selectedZoneId){
+      delete state.seats[seatId];
+    }
+  });
+
+  selectedZoneId = null;
+  saveState();
+  hideZoneConfig();
+  renderAll();
+};
+
+// Seat Editor Modal
+function showSeatEditor(seatId){
+  console.log('=== showSeatEditor ===');
+  console.log('Looking for seatId:', seatId);
+  console.log('Available seats keys (first 10):', Object.keys(state.seats).slice(0, 10));
+
+  const seat = state.seats[seatId];
+  if(!seat) {
+    console.error('❌ Seat not found!', seatId);
+    alert('工位不存在，请刷新页面重试');
+    return;
+  }
+
+  console.log('✓ Found seat:', seat);
+
+  selectedSeatId = seatId;
+  const p = seat.person || {};
+
+  // ⭐ 显示工位号（可编辑）
+  const seatNoDisplay = seat.seatNo || '';
+  document.getElementById("seatEditorTitle").textContent =
+    seat.seatNo ? `编辑工位：${seat.seatNo}` : '编辑工位（无编号）';
+
+  // ⭐ 设置工位号编辑字段
+  document.getElementById("seatNoEdit").value = seatNoDisplay;
+  document.getElementById("seatNoError").style.display = 'none';
+
+  document.getElementById("seatName").value = p.name || "";
+  document.getElementById("seatDept").value = p.dept || "";
+  document.getElementById("seatEmpId").value = p.empId || "";
+  document.getElementById("seatPhone").value = p.phone || "";
+  document.getElementById("seatNote").value = p.note || "";
+
+  // ⭐ 设置网络接口字段
+  const network = seat.network || {};
+  document.getElementById("seatInterfaceS").value = network.interfaceS || "";
+  document.getElementById("seatInterfaceW").value = network.interfaceW || "";
+  document.getElementById("seatIpS").value = network.ipS || "";
+  document.getElementById("seatIpW").value = network.ipW || "";
+
+  // Show metadata
+  const zone = getZone(seat.zoneId);
+  const seatNoLabel = seat.seatNo || '<span style="color: var(--muted);">未分配</span>';
+  const meta = `
+    <div class="chip"><b>工位号：</b>${seatNoLabel}</div>
+    <div class="chip"><b>区域：</b>${escapeHtml(zone?.name || "未知")}</div>
+    <div class="chip"><b>区内位置：</b>R${pad2(seat.r)} C${pad2(seat.c)} (第${seat.localIdx}个)</div>
+    ${seat.updatedAt ? `<div class="chip"><b>更新：</b>${new Date(seat.updatedAt).toLocaleString()}</div>` : ""}
+  `;
+  document.getElementById("seatMeta").innerHTML = meta;
+
+  // ⭐ 添加工位号输入验证
+  const seatNoInput = document.getElementById("seatNoEdit");
+  const seatNoError = document.getElementById("seatNoError");
+
+  // 移除之前的监听器（如果有）
+  const oldListener = seatNoInput.validateSeatNoInput;
+  if (oldListener) {
+    seatNoInput.removeEventListener('input', oldListener);
+  }
+
+  // 添加新的监听器
+  function validateSeatNoInput() {
+    const value = seatNoInput.value.trim();
+
+    if (value === '') {
+      // 空值允许（表示无编号）
+      seatNoError.style.display = 'none';
+      return;
+    }
+
+    // 只允许输入数字
+    if (!/^\d*$/.test(value)) {
+      seatNoInput.value = value.replace(/\D/g, '');
+      return;
+    }
+
+    // 验证长度和格式
+    if (value.length < 3) {
+      seatNoError.textContent = '工位号需要3位数字';
+      seatNoError.style.display = 'block';
+    } else if (value.length === 3) {
+      // ⭐ 不再检查唯一性，允许重复
+      seatNoError.style.display = 'none';
+    }
+  }
+
+  seatNoInput.validateSeatNoInput = validateSeatNoInput;
+  seatNoInput.addEventListener('input', validateSeatNoInput);
+
+  document.getElementById("seatEditorModal").classList.add("active");
+}
+
+function hideSeatEditor(){
+  document.getElementById("seatEditorModal").classList.remove("active");
+}
+
+// ⭐ 清空工位编号函数
+async function clearSeatNumber() {
+  if (!selectedSeatId) return;
+
+  if (!confirm('确定清空工位编号？清空后该工位将没有编号显示。')) return;
+
+  const seat = state.seats[selectedSeatId];
+  if (!seat) return;
+
+  try {
+    if (USE_API && seat._id) {
+      console.log('⏳ 清空工位编号...');
+      const result = await api.clearSeatNumber(seat._id);
+
+      // 更新本地版本号
+      if (result.seat && result.seat.version) {
+        seat.version = result.seat.version;
+        syncClient.clientVersions.seats[seat._id] = result.seat.version;
+      }
+
+      console.log('✓ 工位编号已清空');
+      showNotification('工位编号已清空', 'success');
+    }
+  } catch (error) {
+    console.error('API 清空失败，使用本地清空:', error.message);
+    showNotification('编号清空失败，已在本地清空', 'warn');
+
+    // 添加到离线队列
+    syncClient.addToOfflineQueue({
+      type: 'seat',
+      data: {
+        _id: seat._id,
+        clientVersion: seat.version,
+        seatNo: null
+      }
+    });
+  }
+
+  // ⭐ 本地更新：需要更新 seatId
+  const oldSeatId = selectedSeatId;
+
+  // 删除旧的 seatId
+  delete state.seats[oldSeatId];
+
+  // 生成新的 seatId（使用位置信息，因为没有编号了）
+  const newSeatId = `${seat.zoneId}::${seat.r}-${seat.c}`;
+
+  // 更新工位数据
+  seat.seatNo = null;
+  seat.globalIdx = 0;  // 无编号时 globalIdx 设为 0
+  seat.updatedAt = now();
+
+  // 使用新 seatId 保存
+  state.seats[newSeatId] = seat;
+  selectedSeatId = newSeatId;
+
+  // 更新显示
+  document.getElementById("seatNoEdit").value = '';
+  document.getElementById("seatEditorTitle").textContent = '编辑工位（无编号）';
+  document.getElementById("seatNoError").style.display = 'none';
+
+  console.log(`seatId 变更: ${oldSeatId} -> ${newSeatId}`);
+
+  // ⭐ 清理可能的重复数据
+  cleanupDuplicateSeats();
+
+  saveState();
+  renderAll();
+
+  showNotification('工位编号已清空', 'success');
+}
+
+document.getElementById("btnSeatCancel").onclick = hideSeatEditor;
+document.getElementById("btnSeatSave").onclick = async () => {
+  const seat = state.seats[selectedSeatId];
+  if(!seat) return;
+
+  // ⭐ 获取并验证工位编号
+  const newSeatNoInput = document.getElementById("seatNoEdit").value.trim();
+  const errorDiv = document.getElementById("seatNoError");
+
+  let newSeatNo = null;
+  if (newSeatNoInput) {
+    // 验证格式：必须是3位数字
+    if (!/^\d{3}$/.test(newSeatNoInput)) {
+      errorDiv.textContent = '工位号必须是3位数字（如 001）';
+      errorDiv.style.display = 'block';
+      return;
+    }
+
+    newSeatNo = newSeatNoInput;
+  }
+
+  errorDiv.style.display = 'none';
+
+  const personUpdates = {
+    name: document.getElementById("seatName").value.trim(),
+    dept: document.getElementById("seatDept").value.trim(),
+    empId: document.getElementById("seatEmpId").value.trim(),
+    phone: document.getElementById("seatPhone").value.trim(),
+    note: document.getElementById("seatNote").value.trim()
+  };
+
+  // ⭐ 获取网络接口信息
+  const networkUpdates = {
+    interfaceS: document.getElementById("seatInterfaceS").value.trim(),
+    interfaceW: document.getElementById("seatInterfaceW").value.trim(),
+    ipS: document.getElementById("seatIpS").value.trim(),
+    ipW: document.getElementById("seatIpW").value.trim()
+  };
+
+  // ⭐ 检查工位号是否改变
+  const seatNoChanged = newSeatNo !== seat.seatNo;
+
+  try {
+    if (USE_API && seat._id) {
+      console.log('⏳ 保存工位信息...');
+
+      // ⭐ 如果工位号改变，需要同时更新 seatNo、person 和 network
+      const updates = { person: personUpdates, network: networkUpdates };
+      if (seatNoChanged) {
+        updates.seatNo = newSeatNo;
+        console.log(`工位号变更: ${seat.seatNo} -> ${newSeatNo}`);
+      }
+
+      const result = await api.updateSeat(seat._id, updates);
+
+      // 更新本地版本号
+      if (result.seat && result.seat.version) {
+        seat.version = result.seat.version;
+        syncClient.clientVersions.seats[seat._id] = result.seat.version;
+      }
+
+      console.log('✓ 工位信息已保存');
+      showNotification('工位信息已保存', 'success');
+    }
+  } catch (error) {
+    console.error('API 保存失败，使用本地保存:', error.message);
+    showNotification('工位保存失败，已在本地保存', 'warn');
+
+    // 添加到离线队列
+    const queueData = {
+      type: 'seat',
+      data: {
+        _id: seat._id,
+        clientVersion: seat.version,
+        person: personUpdates,
+        network: networkUpdates
+      }
+    };
+
+    if (seatNoChanged) {
+      queueData.data.seatNo = newSeatNo;
+    }
+
+    syncClient.addToOfflineQueue(queueData);
+  }
+
+  // ⭐ 本地更新：处理工位号变更
+  if (seatNoChanged) {
+    // 删除旧的 seatId
+    delete state.seats[selectedSeatId];
+
+    // ⭐ 创建新的 seatId（与 getZoneSeatsAsGrid 逻辑一致）
+    const newSeatId = newSeatNo
+      ? `${seat.zoneId}::${newSeatNo}`
+      : `${seat.zoneId}::${seat.r}-${seat.c}`;
+
+    // 更新工位数据
+    seat.seatNo = newSeatNo;
+    seat.globalIdx = newSeatNo ? parseInt(newSeatNo) : 0;
+    seat.person = personUpdates;
+    seat.network = networkUpdates;
+    seat.updatedAt = now();
+
+    // 使用新的 seatId 保存
+    state.seats[newSeatId] = seat;
+    selectedSeatId = newSeatId;
+
+    console.log(`本地 seatId 变更: ${selectedSeatId.substring(0, 30)}... -> ${newSeatId}`);
+
+    // ⭐ 清理可能的重复数据
+    cleanupDuplicateSeats();
+  } else {
+    // 工位号未变更，只更新人员信息和网络信息
+    seat.person = personUpdates;
+    seat.network = networkUpdates;
+    seat.updatedAt = now();
+  }
+
+  saveState();
+  hideSeatEditor();
+  renderAll();
+
+  // Refresh grid modal if open
+  if(document.getElementById("seatsGridModal").classList.contains("active")){
+    showSeatsGridModal(seat.zoneId);
+  }
+};
+
+document.getElementById("btnSeatClear").onclick = () => {
+  const seat = state.seats[selectedSeatId];
+  if(!seat) return;
+
+  seat.person = { name:"", dept:"", empId:"", phone:"", note:"" };
+  seat.network = { interfaceS:"", interfaceW:"", ipS:"", ipW:"" };
+  seat.updatedAt = now();
+
+  saveState();
+  hideSeatEditor();
+  renderAll();
+
+  // Refresh grid modal if open
+  if(document.getElementById("seatsGridModal").classList.contains("active")){
+    showSeatsGridModal(seat.zoneId);
+  }
+};
+
+// Search (currently disabled)
+document.getElementById("qSearch").addEventListener("input", (e) => {
+  searchQuery = e.target.value.toLowerCase();
+  // Search functionality can be re-enabled if needed
+});
+
+document.getElementById("btnClearSearch").onclick = () => {
+  searchQuery = "";
+  document.getElementById("qSearch").value = "";
+};
+
+// Stats
+function computeStats(){
+  let total = 0, used = 0;
+
+  // ⭐ 修复：直接统计现有工位，不重新生成，且只统计座位区域
+  state.zones.forEach(zone => {
+    // 跳过功能区域
+    if (zone.type === 'function') return;
+
+    // 直接使用现有工位数据
+    const seats = getZoneSeatsAsGrid(zone);
+    total += seats.length;
+    used += seats.filter(s => (s.person?.name || "").trim() !== "").length;
+  });
+
+  return { total, used, empty: total - used };
+}
+
+function renderStats(){
+  const st = computeStats();
+  const html = `
+    <div class="kpi-box">
+      <div class="kpi-n">${st.total}</div>
+      <div class="kpi-t">总工位</div>
+    </div>
+    <div class="kpi-box">
+      <div class="kpi-n">${st.used}</div>
+      <div class="kpi-t">已占用</div>
+    </div>
+    <div class="kpi-box">
+      <div class="kpi-n">${st.empty}</div>
+      <div class="kpi-t">空闲</div>
+    </div>
+  `;
+  document.getElementById("kpi").innerHTML = html;
+}
+
+// Render zones list
+function renderZonesList(){
+  const list = document.getElementById("zonesList");
+  if(state.zones.length === 0){
+    list.innerHTML = '<div class="empty-state">还没有区域，点击"添加区域"开始</div>';
+    return;
+  }
+
+  console.log('renderZonesList - selectedZoneId:', selectedZoneId);
+  console.log('renderZonesList - zones:', state.zones.map(z => ({ name: z.name, id: z.id, _id: z._id })));
+
+  list.innerHTML = "";
+  state.zones.forEach(zone => {
+    const div = document.createElement("div");
+    const isSelected = zone.id === selectedZoneId;
+    console.log(`Zone "${zone.name}": id="${zone.id}", selectedZoneId="${selectedZoneId}", isSelected=${isSelected}`);
+    div.className = "zone-item" + (isSelected ? " selected" : "");
+
+    // 根据区域类型显示不同的信息
+    const zoneInfo = zone.type === 'function'
+      ? `${escapeHtml(zone.code)} · 功能区域`
+      : `${escapeHtml(zone.code)} · ${zone.count}座 (${zone.rows}×${zone.cols})`;
+
+    div.innerHTML = `
+      <div class="zone-item-name">${escapeHtml(zone.name)}</div>
+      <div class="zone-item-info">${zoneInfo}</div>
+    `;
+    div.onclick = () => {
+      selectedZoneId = zone.id;
+      // 功能区域不显示工位网格
+      if (zone.type !== 'function') {
+        showSeatsGridModal(zone.id);
+      }
+      renderAll();
+    };
+    list.appendChild(div);
+  });
+}
+
+// Render seats in right panel
+function renderSeats(){
+  const panel = document.getElementById("rightPanel");
+  const title = document.getElementById("rightTitle");
+
+  if(!selectedZoneId){
+    title.textContent = "选择区域";
+    panel.innerHTML = '<div class="empty-state">👈 在左侧区域列表选择或在画布上点击区域查看工位</div>';
+    return;
+  }
+
+  const zone = getZone(selectedZoneId);
+  if(!zone){
+    title.textContent = "选择区域";
+    panel.innerHTML = '<div class="empty-state">区域已删除</div>';
+    return;
+  }
+
+  title.textContent = `${zone.name}`;
+
+  // ⭐ 功能区域不显示工位信息
+  if (zone.type === 'function') {
+    panel.innerHTML = `
+      <div style="padding: 12px; background: rgba(0,0,0,.2); border-radius: 8px; margin-bottom: 12px;">
+        <div style="font-size: 14px; color: var(--muted); text-align: center;">
+          功能区域（无工位信息）
+        </div>
+      </div>
+      <button class="btn primary" onclick="showZoneConfig('${zone.id}')" style="width: 100%;">⚙️ 编辑区域</button>
+    `;
+    return;
+  }
+
+  // ⭐ 修复：直接使用现有工位数据
+  const seats = getZoneSeatsAsGrid(zone);
+
+  // Calculate statistics
+  const occupied = seats.filter(s => (s.person?.name || "").trim() !== "").length;
+  const empty = seats.length - occupied;
+
+  const statsHtml = `
+    <div style="padding: 12px; background: rgba(0,0,0,.2); border-radius: 8px; margin-bottom: 12px;">
+      <div style="font-size: 12px; color: var(--muted); margin-bottom: 8px;">区域统计</div>
+      <div class="kpi" style="grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin: 0;">
+        <div class="kpi-box" style="padding: 8px;">
+          <div class="kpi-n">${seats.length}</div>
+          <div class="kpi-t">总工位</div>
+        </div>
+        <div class="kpi-box" style="padding: 8px;">
+          <div class="kpi-n">${occupied}</div>
+          <div class="kpi-t">已占用</div>
+        </div>
+        <div class="kpi-box" style="padding: 8px;">
+          <div class="kpi-n">${empty}</div>
+          <div class="kpi-t">空闲</div>
+        </div>
+      </div>
+    </div>
+    <button class="btn primary" onclick="showSeatsGridModal('${zone.id}')" style="width: 100%;">📊 查看工位分布</button>
+  `;
+
+  panel.innerHTML = statsHtml;
+}
+
+// Export/Import
+document.getElementById("btnExport").onclick = () => {
+  const blob = new Blob([JSON.stringify(state, null, 2)], {type:"application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "floor-data.json";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 800);
+};
+
+document.getElementById("btnImport").onclick = () => fileInput.click();
+fileInput.addEventListener("change", (e) => {
+  const f = e.target.files?.[0];
+  if(!f) return;
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    try{
+      const obj = JSON.parse(reader.result);
+      if(!obj || !obj.floor || !Array.isArray(obj.zones) || typeof obj.seats !== "object"){
+        alert("JSON结构不正确");
+        return;
+      }
+      state = obj;
+      selectedZoneId = null;
+      saveState();
+      renderAll();
+      alert("导入成功");
+    }catch(e){
+      alert("导入失败：JSON解析错误");
+    }
+  };
+  reader.readAsText(f, "utf-8");
+  e.target.value = "";
+});
+
+// Download XLSX Template
+document.getElementById("btnDownloadTemplate").onclick = () => {
+  if (typeof XLSX === 'undefined') {
+    alert('XLSX库未加载，无法导出Excel文件');
+    return;
+  }
+
+  buildAllSeats();
+
+  const headers = [
+    '工位号',
+    '姓名',
+    '部门',
+    '工号',
+    '电话',
+    'S接口编号',
+    'S接口IP',
+    'W接口编号',
+    'W接口IP',
+    '备注'
+  ];
+
+  const seats = Object.values(state.seats).sort((a, b) => {
+    const noA = a.seatNo || '';
+    const noB = b.seatNo || '';
+    return noA.localeCompare(noB, undefined, { numeric: true });
+  });
+
+  const templateData = seats.map(seat => {
+    const person = seat.person || {};
+    const network = seat.network || {};
+
+    return {
+      '工位号': seat.seatNo || '',
+      '姓名': person.name || '',
+      '部门': person.dept || '',
+      '工号': person.empId || '',
+      '电话': person.phone || '',
+      'S接口编号': network.interfaceS || '',
+      'S接口IP': network.ipS || '',
+      'W接口编号': network.interfaceW || '',
+      'W接口IP': network.ipW || '',
+      '备注': person.note || ''
+    };
+  });
+
+  // Create worksheet. When there are no seats, keep the import headers in place.
+  const worksheet = templateData.length > 0
+    ? XLSX.utils.json_to_sheet(templateData, { header: headers })
+    : XLSX.utils.aoa_to_sheet([headers]);
+
+  // Set column widths
+  worksheet['!cols'] = [
+    { wch: 12 },  // 工位号
+    { wch: 12 },  // 姓名
+    { wch: 15 },  // 部门
+    { wch: 12 },  // 工号
+    { wch: 18 },  // 电话
+    { wch: 15 },  // S接口编号
+    { wch: 18 },  // S接口IP
+    { wch: 15 },  // W接口编号
+    { wch: 18 },  // W接口IP
+    { wch: 20 }   // 备注
+  ];
+
+  // Create workbook
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "工位信息");
+
+  // Download
+  const now = new Date();
+  const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '');
+  const timeStr = now.toTimeString().slice(0, 5).replace(/:/g, '');
+  XLSX.writeFile(workbook, `工位导入模板_${dateStr}_${timeStr}.xlsx`);
+
+  showNotification(`已导出 ${seats.length} 条工位信息`, 'success');
+};
+
+// XLSX Import
+document.getElementById("btnImportXlsx").onclick = () => {
+  const xlsxInput = document.getElementById("xlsxInput");
+  xlsxInput.click();
+};
+
+document.getElementById("xlsxInput").addEventListener("change", async (e) => {
+  const f = e.target.files?.[0];
+  if(!f) return;
+
+  const reader = new FileReader();
+  reader.onload = async () => {
+    try{
+      const data = new Uint8Array(reader.result);
+      const workbook = XLSX.read(data, { type: 'array' });
+
+      // Get first sheet
+      const sheetName = workbook.SheetNames[0];
+      const sheet = workbook.Sheets[sheetName];
+
+      // Convert to JSON
+      const rows = XLSX.utils.sheet_to_json(sheet);
+
+      if(!Array.isArray(rows) || rows.length === 0){
+        alert("XLSX文件为空或格式不正确");
+        return;
+      }
+
+      // 首先，确保所有区域的工位都被创建
+      buildAllSeats();
+
+      // Parse XLSX and update seats
+      let updated = 0;
+      let notFound = 0;
+      const errorRows = [];
+      const updatedSeats = []; // ⭐ 收集需要同步到服务器的工位
+
+      rows.forEach((row, rowIdx) => {
+        // Support multiple column name variations
+        let seatNoRaw = row['工位号'] ||
+                        row['工位编号'] ||
+                        row['SeatNo'] ||
+                        row['seatNo'] ||
+                        row['座位号'] ||
+                        '';
+
+        // Convert to string and extract only numbers
+        seatNoRaw = String(seatNoRaw).trim();
+        const seatNoNumeric = seatNoRaw.replace(/\D/g, '');
+
+        if(!seatNoNumeric || seatNoNumeric.length === 0){
+          return; // Skip rows without seat number
+        }
+
+        // Format to 3-digit format
+        const seatNo = pad3(parseInt(seatNoNumeric));
+
+        // Find seat by seatNo across all zones
+        let foundSeat = null;
+        let foundSeatId = null;
+
+        for(const seatId in state.seats){
+          if(state.seats[seatId].seatNo === seatNo){
+            foundSeat = state.seats[seatId];
+            foundSeatId = seatId;
+            break;
+          }
+        }
+
+        if(foundSeat && foundSeatId){
+          // Update person information
+          const name = (row['姓名'] || row['name'] || row['Name'] || '').toString().trim();
+          const dept = (row['部门'] || row['项目组'] || row['dept'] || row['Dept'] || '').toString().trim();
+          const empId = (row['工号'] || row['员工号'] || row['empId'] || row['EmpId'] || '').toString().trim();
+          const phone = (row['电话'] || row['手机'] || row['phone'] || row['Phone'] || '').toString().trim();
+          const note = (row['备注'] || row['说明'] || row['note'] || row['Note'] || '').toString().trim();
+
+          foundSeat.person = {
+            name: name,
+            dept: dept,
+            empId: empId,
+            phone: phone,
+            note: note
+          };
+
+          // Update network interface information
+          const interfaceS = (row['S接口编号'] || row['S接口'] || row['interfaceS'] || row['InterfaceS'] || '').toString().trim();
+          const ipS = (row['S接口IP'] || row['SIP'] || row['ipS'] || row['IpS'] || '').toString().trim();
+          const interfaceW = (row['W接口编号'] || row['W接口'] || row['interfaceW'] || row['InterfaceW'] || '').toString().trim();
+          const ipW = (row['W接口IP'] || row['WIP'] || row['ipW'] || row['IpW'] || '').toString().trim();
+
+          // Initialize network object if not exists
+          if (!foundSeat.network) {
+            foundSeat.network = {};
+          }
+
+          foundSeat.network.interfaceS = interfaceS;
+          foundSeat.network.ipS = ipS;
+          foundSeat.network.interfaceW = interfaceW;
+          foundSeat.network.ipW = ipW;
+
+          foundSeat.updatedAt = now();
+          updated++;
+
+          // ⭐ 收集需要同步的工位
+          if(foundSeat._id){
+            updatedSeats.push({
+              _id: foundSeat._id,
+              person: foundSeat.person,
+              network: foundSeat.network
+            });
+          }
+        }else{
+          notFound++;
+          errorRows.push(`第 ${rowIdx + 2} 行：工位号 ${seatNo} 未找到`);
+        }
+      });
+
+      if(updated === 0){
+        const errorMsg = errorRows.slice(0, 5).join('\n');
+        alert(`未找到任何匹配的工位。\n已处理行数：${rows.length}\n\n${errorMsg}${errorRows.length > 5 ? '\n...' : ''}`);
+        return;
+      }
+
+      // ⭐ 同步到服务器
+      let syncSuccess = 0;
+      let syncFailed = 0;
+
+      if(USE_API && updatedSeats.length > 0){
+        console.log(`⏳ 同步 ${updatedSeats.length} 个工位到服务器...`);
+
+        for(const seat of updatedSeats){
+          try{
+            await api.updateSeat(seat._id, {
+              person: seat.person,
+              network: seat.network
+            });
+            syncSuccess++;
+          }catch(error){
+            console.error(`✗ 工位 ${seat._id} 同步失败:`, error.message);
+            syncFailed++;
+
+            // 添加到离线队列
+            if(syncClient && syncClient.addToOfflineQueue){
+              syncClient.addToOfflineQueue({
+                type: 'seat',
+                data: {
+                  _id: seat._id,
+                  clientVersion: state.seats[seat._id]?.version,
+                  person: seat.person,
+                  network: seat.network
+                }
+              });
+            }
+          }
+        }
+
+        console.log(`✓ 同步完成: 成功 ${syncSuccess}, 失败 ${syncFailed}`);
+      }
+
+      saveState();
+      renderAll();
+
+      let msg = `导入成功！\n更新工位数：${updated}\n未找到：${notFound}`;
+
+      if(USE_API && updatedSeats.length > 0){
+        msg += `\n\n服务器同步：\n成功：${syncSuccess}\n失败：${syncFailed}`;
+        if(syncFailed > 0){
+          msg += `\n（失败的已加入离线队列）`;
+        }
+      }
+
+      if(notFound > 0 && errorRows.length > 0){
+        msg += `\n\n未找到的工位：\n${errorRows.slice(0, 5).join('\n')}${errorRows.length > 5 ? '\n...' : ''}`;
+      }
+      alert(msg);
+    }catch(err){
+      console.error(err);
+      alert(`导入失败：${err.message}`);
+    }
+  };
+  reader.readAsArrayBuffer(f);
+  e.target.value = "";
+});
+
+document.getElementById("btnReset").onclick = () => {
+  if(!confirm("确定清空所有数据吗？")) return;
+  state = defaultState();
+  selectedZoneId = null;
+  selectedSeatId = null;
+  saveState();
+  renderAll();
+};
+
+// Debug seats data
+document.getElementById("btnDebugSeats").onclick = () => {
+  let msg = "=== 工位数据调试信息 ===\n\n";
+  msg += `总工位数：${Object.keys(state.seats).length}\n\n`;
+
+  // Count by zone
+  const zoneStats = {};
+  for(const seatId in state.seats){
+    const seat = state.seats[seatId];
+    if(!zoneStats[seat.zoneId]){
+      zoneStats[seat.zoneId] = { total: 0, occupied: 0 };
+    }
+    zoneStats[seat.zoneId].total++;
+    if((seat.person?.name || "").trim() !== ""){
+      zoneStats[seat.zoneId].occupied++;
+    }
+  }
+
+  // Display by zone
+  state.zones.forEach((zone, idx) => {
+    const stats = zoneStats[zone.id] || { total: 0, occupied: 0 };
+    msg += `区域${idx + 1}：${zone.name}\n`;
+    msg += `  配置工位数：${zone.count}\n`;
+    msg += `  实际工位数：${stats.total}\n`;
+    msg += `  已占用：${stats.occupied}\n`;
+    msg += `  空闲：${stats.total - stats.occupied}\n\n`;
+  });
+
+  // Show sample occupied seats
+  msg += "=== 已分配工位示例（前10个）===\n";
+  let count = 0;
+  for(const seatId in state.seats){
+    const seat = state.seats[seatId];
+    if((seat.person?.name || "").trim() !== "" && count < 10){
+      msg += `工位${seat.seatNo}: ${seat.person.name} (${seat.person.dept || "无部门"})\n`;
+      count++;
+    }
+  }
+
+  alert(msg);
+  console.log("完整工位数据：", state.seats);
+};
+
+// Seats Grid Modal Functions
+function showSeatsGridModal(zoneId){
+  const zone = getZone(zoneId);
+  if(!zone) return;
+
+  // ⭐ 功能区域不显示工位分布
+  if (zone.type === 'function') {
+    showNotification('功能区域无工位信息', 'info');
+    return;
+  }
+
+  const headerDiv = document.createElement("div");
+  headerDiv.style.display = "flex";
+  headerDiv.style.justifyContent = "space-between";
+  headerDiv.style.alignItems = "center";
+  headerDiv.style.marginBottom = "16px";
+  headerDiv.style.paddingBottom = "12px";
+  headerDiv.style.borderBottom = "1px solid rgba(255,255,255,.08)";
+
+  const titleDiv = document.createElement("div");
+  titleDiv.style.fontSize = "16px";
+  titleDiv.style.fontWeight = "700";
+  titleDiv.textContent = `${zone.name} - 工位分布 (${zone.rows}×${zone.cols})`;
+  headerDiv.appendChild(titleDiv);
+
+  const buttonDiv = document.createElement("div");
+  buttonDiv.style.display = "flex";
+  buttonDiv.style.gap = "8px";
+
+  const editBtn = document.createElement("button");
+  editBtn.className = "btn primary";
+  editBtn.textContent = "⚙️ 编辑";
+  editBtn.onclick = () => {
+    closeSeatsGridModal();
+    showZoneConfig(zone.id);
+  };
+  buttonDiv.appendChild(editBtn);
+
+  const closeBtn = document.createElement("div");
+  closeBtn.style.cursor = "pointer";
+  closeBtn.style.fontSize = "24px";
+  closeBtn.style.color = "var(--muted)";
+  closeBtn.style.lineHeight = "1";
+  closeBtn.style.padding = "4px 8px";
+  closeBtn.style.borderRadius = "6px";
+  closeBtn.style.transition = "all 0.2s";
+  closeBtn.textContent = "✕";
+  closeBtn.onclick = closeSeatsGridModal;
+  closeBtn.onmouseenter = () => {
+    closeBtn.style.background = "rgba(255,255,255,.1)";
+    closeBtn.style.color = "var(--text)";
+  };
+  closeBtn.onmouseleave = () => {
+    closeBtn.style.background = "";
+    closeBtn.style.color = "var(--muted)";
+  };
+  buttonDiv.appendChild(closeBtn);
+
+  headerDiv.appendChild(buttonDiv);
+
+  // ⭐ 修复：直接使用现有工位数据
+  const seats = getZoneSeatsAsGrid(zone);
+
+  const seatMap = {};
+  seats.forEach(s => {
+    const key = `${s.r}-${s.c}`;
+    seatMap[key] = s;
+  });
+
+  const body = document.getElementById("gridModalBody");
+  body.innerHTML = "";
+  body.appendChild(headerDiv);
+
+  // Create grid container
+  const gridDiv = document.createElement("div");
+  gridDiv.className = "seats-grid-large";
+  gridDiv.style.gridTemplateColumns = `repeat(${zone.cols}, 1fr)`;
+
+  // Render grid cells
+  for(let r = 1; r <= zone.rows; r++){
+    for(let c = 1; c <= zone.cols; c++){
+      const key = `${r}-${c}`;
+      const seat = seatMap[key];
+
+      if(seat){
+        const card = document.createElement("div");
+        const p = seat.person || {};
+        const occupied = (p.name || "").trim() !== "";
+
+        card.className = `seat-card-large ${occupied ? 'occupied' : ''}`;
+        // ⭐ 处理 seatNo 为空的情况
+        const seatNoDisplay = seat.seatNo || '<span style="color: var(--muted);">-</span>';
+        const network = seat.network || {};
+        const networkInfo = (network.interfaceS || network.interfaceW)
+          ? `<div class="seat-card-dept-large" style="font-size: 10px; opacity: 0.7;">${
+              [network.interfaceS, network.interfaceW].filter(Boolean).join(' / ')
+            }</div>`
+          : '';
+
+        card.innerHTML = `
+          <div class="seat-card-no-large">${seatNoDisplay}</div>
+          ${occupied
+            ? `<div class="seat-card-name-large">${escapeHtml(p.name)}</div>`
+            : `<div class="seat-card-empty-large">空</div>`
+          }
+          ${p.dept ? `<div class="seat-card-dept-large">${escapeHtml(p.dept)}</div>` : ''}
+          ${networkInfo}
+        `;
+        card.onclick = () => {
+          showSeatEditor(seat.seatId);
+        };
+
+        gridDiv.appendChild(card);
+      }else{
+        // Empty cell
+        const emptyCell = document.createElement("div");
+        emptyCell.className = "seat-card-large";
+        emptyCell.style.background = "rgba(0,0,0,.08)";
+        emptyCell.style.cursor = "default";
+        emptyCell.style.color = "var(--muted)";
+        emptyCell.textContent = "×";
+        gridDiv.appendChild(emptyCell);
+      }
+    }
+  }
+
+  body.appendChild(gridDiv);
+
+  // Show modal
+  document.getElementById("seatsGridModal").classList.add("active");
+}
+
+function closeSeatsGridModal(){
+  document.getElementById("seatsGridModal").classList.remove("active");
+}
+
+// Zone double-click to configure
+canvas.addEventListener("dblclick", (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const x = (e.clientX - rect.left) / zoom;
+  const y = (e.clientY - rect.top) / zoom;
+
+  const zone = getZoneAtPoint(x, y);
+  if(zone){
+    selectedZoneId = zone.id;
+    showZoneConfig(zone.id);
+  }
+});
+
+// Main render function
+function renderAll(){
+  buildAllSeats();
+  renderStats();
+  renderZonesList();
+  renderSeats();
+  draw();
+}
+
+// 初始化应用
+document.addEventListener('DOMContentLoaded', async () => {
+  console.log('⏳ 初始化应用...');
+
+  // 初始化 WebSocket 同步客户端
+  syncClient.initialize();
+
+  state = await loadState();
+
+  // ⭐ 清理重复和格式错误的工位数据
+  cleanupDuplicateSeats();
+
+  renderAll();
+
+  // 手动同步按钮
+  document.getElementById('btnManualSync').onclick = () => {
+    syncClient.manualSync();
+  };
+
+  console.log('✓ 应用初始化完成');
+});
+
+// 页面加载时的回退方案（如果 DOMContentLoaded 已经触发）
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', async () => {
+    syncClient.initialize();
+    state = await loadState();
+    renderAll();
+  });
+} else {
+  // DOM 已加载，立即初始化
+  (async () => {
+    syncClient.initialize();
+    state = await loadState();
+    renderAll();
+  })();
+}
+</script>
+
+</body>
+</html>

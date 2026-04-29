@@ -1,0 +1,2487 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>工位布局展示</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --bg: #0f172a;
+      --text: #e2e8f0;
+      --muted: #64748b;
+      --border: rgba(148, 163, 184, 0.1);
+      --good: #22c55e;
+      --warn: #f59e0b;
+      --bad: #ef4444;
+
+      /* 项目组颜色 */
+      --color-default: #6366f1;
+      --color-project-1: #3b82f6;
+      --color-project-2: #8b5cf6;
+      --color-project-3: #ec4899;
+      --color-project-4: #f59e0b;
+      --color-project-5: #10b981;
+      --color-project-6: #06b6d4;
+      --color-project-7: #f97316;
+      --color-project-8: #84cc16;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+    }
+
+    #container {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* 顶部信息栏 */
+    #header {
+      background: rgba(15, 23, 42, 0.95);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    #title {
+      font-size: 18px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    #stats {
+      display: flex;
+      gap: 20px;
+      font-size: 14px;
+      align-items: center;
+    }
+
+    .stat-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* 搜索框 */
+    #searchBox {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-left: 20px;
+      padding-left: 20px;
+      border-left: 1px solid var(--border);
+    }
+
+    #searchInput {
+      width: 200px;
+      padding: 6px 12px;
+      background: rgba(15, 23, 42, 0.5);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 14px;
+      outline: none;
+      transition: all 0.2s;
+    }
+
+    #searchInput:focus {
+      border-color: #6366f1;
+      background: rgba(15, 23, 42, 0.8);
+    }
+
+    #searchInput::placeholder {
+      color: var(--muted);
+    }
+
+    #searchClear {
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      padding: 4px 8px;
+      font-size: 18px;
+      display: none;
+      transition: color 0.2s;
+    }
+
+    #searchClear:hover {
+      color: var(--text);
+    }
+
+    #searchClear.active {
+      display: block;
+    }
+
+    #searchResults {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      margin-top: 4px;
+      max-height: 300px;
+      overflow-y: auto;
+      display: none;
+      z-index: 1000;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+      /* 隐藏滚动条但保留滚动功能 */
+      scrollbar-width: none; /* Firefox */
+      -ms-overflow-style: none; /* IE and Edge */
+    }
+
+    #searchResults::-webkit-scrollbar {
+      display: none; /* Chrome, Safari, Opera */
+    }
+
+    #searchResults.active {
+      display: block;
+    }
+
+    .search-result-item {
+      padding: 10px 12px;
+      cursor: pointer;
+      border-bottom: 1px solid var(--border);
+      transition: background 0.2s;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .search-result-item:last-child {
+      border-bottom: none;
+    }
+
+    .search-result-item:hover {
+      background: rgba(99, 102, 241, 0.1);
+    }
+
+    .search-result-main {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .search-result-seat {
+      font-weight: 600;
+      font-size: 14px;
+      color: #6366f1;
+    }
+
+    .search-result-person {
+      font-size: 13px;
+      color: var(--text);
+    }
+
+    .search-result-zone {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .search-result-empty {
+      padding: 20px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .stat-label {
+      color: var(--muted);
+    }
+
+    .stat-value {
+      font-weight: 600;
+      font-size: 16px;
+    }
+
+    .stat-value.good { color: var(--good); }
+    .stat-value.warn { color: var(--warn); }
+
+    /* 画布容器 */
+    #canvasContainer {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      background: #0a0f1e;
+      touch-action: none; /* 禁用默认触摸行为 */
+    }
+
+    #canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      transform-origin: 0 0;
+      background: #0a0f1e;
+      cursor: grab;
+    }
+
+    #canvas.dragging {
+      cursor: grabbing;
+    }
+
+    /* 连接状态指示器 */
+    #connectionStatus {
+      position: fixed;
+      top: 70px;
+      right: 20px;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      backdrop-filter: blur(10px);
+      z-index: 1000;
+    }
+
+    #connectionStatus.connected {
+      background: rgba(34, 197, 94, 0.2);
+      border: 1px solid rgba(34, 197, 94, 0.4);
+      color: var(--good);
+    }
+
+    #connectionStatus.disconnected {
+      background: rgba(239, 68, 68, 0.2);
+      border: 1px solid rgba(239, 68, 68, 0.4);
+      color: var(--bad);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    #connectionStatus.connected .status-dot {
+      background: var(--good);
+    }
+
+    #connectionStatus.disconnected .status-dot {
+      background: var(--bad);
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    /* 加载动画 */
+    #loading {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      color: var(--muted);
+    }
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid var(--border);
+      border-top-color: var(--text);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 16px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* 模态框 */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(5px);
+      z-index: 2000;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal.active {
+      display: flex;
+    }
+
+    .modal-content {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      max-width: 90%;
+      max-height: 90%;
+      overflow-y: auto;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+      /* 隐藏滚动条但保留滚动功能 */
+      scrollbar-width: none; /* Firefox */
+      -ms-overflow-style: none; /* IE and Edge */
+    }
+
+    .modal-content::-webkit-scrollbar {
+      display: none; /* Chrome, Safari, Opera */
+    }
+
+    /* 宽屏优化 */
+    @media (min-width: 1200px) {
+      .modal-content {
+        max-width: 1000px;
+      }
+    }
+
+    @media (min-width: 1600px) {
+      .modal-content {
+        max-width: 1200px;
+      }
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 16px;
+    }
+
+    .modal-title {
+      font-size: 20px;
+      font-weight: 600;
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      color: var(--text);
+      font-size: 24px;
+      cursor: pointer;
+      padding: 0;
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color 0.2s;
+    }
+
+    .modal-close:hover {
+      color: var(--muted);
+    }
+
+    /* 区域座位布局模态框 */
+    #zoneLayoutModal .modal-content {
+      max-width: 90%;
+    }
+
+    @media (min-width: 1200px) {
+      #zoneLayoutModal .modal-content {
+        max-width: 1100px;
+      }
+    }
+
+    @media (min-width: 1600px) {
+      #zoneLayoutModal .modal-content {
+        max-width: 1400px;
+      }
+    }
+
+    #seatGridContainer {
+      display: grid;
+      gap: 12px;
+    }
+
+    .grid-info {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px;
+      background: rgba(99, 102, 241, 0.1);
+      border-radius: 6px;
+      border: 1px solid rgba(99, 102, 241, 0.2);
+      margin-bottom: 16px;
+    }
+
+    .grid-info-item {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .grid-info-label {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .grid-info-value {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .seat-grid {
+      display: inline-grid;
+      gap: 8px;
+      padding: 16px;
+      background: rgba(15, 23, 42, 0.5);
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+
+    .seat-item {
+      min-width: 80px;
+      min-height: 70px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 8px 6px;
+      border-radius: 6px;
+      cursor: pointer;
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      transition: all 0.2s;
+      font-size: 12px;
+      gap: 3px;
+      line-height: 1.2;
+    }
+
+    .seat-item-no {
+      font-weight: 700;
+      font-size: 13px;
+    }
+
+    .seat-item-name {
+      font-size: 11px;
+      font-weight: 600;
+      text-align: center;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 100%;
+    }
+
+    .seat-item-dept {
+      font-size: 10px;
+      text-align: center;
+      opacity: 0.7;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 100%;
+    }
+
+    .seat-item.empty {
+      background: rgba(255, 255, 255, 0.05);
+      color: #9fb0d6;
+    }
+
+    .seat-item.empty:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(148, 163, 184, 0.4);
+    }
+
+    .seat-item.occupied {
+      background: rgba(34, 197, 94, 0.2);
+      color: var(--good);
+      border-color: rgba(34, 197, 94, 0.4);
+    }
+
+    .seat-item.occupied:hover {
+      background: rgba(34, 197, 94, 0.3);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(34, 197, 94, 0.2);
+    }
+
+    .seat-item.reserved {
+      background: rgba(251, 191, 36, 0.2);
+      color: #fbbf24;
+      border-color: rgba(251, 191, 36, 0.4);
+      border-style: dashed;
+    }
+
+    .seat-item.reserved:hover {
+      background: rgba(251, 191, 36, 0.3);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(251, 191, 36, 0.2);
+    }
+
+    .seat-item.unavailable {
+      opacity: 0.3;
+      cursor: default;
+      pointer-events: none;
+    }
+
+    /* 工位详情模态框 */
+    #seatDetailsModal .modal-content {
+      max-width: 600px;
+    }
+
+    @media (min-width: 1200px) {
+      #seatDetailsModal .modal-content {
+        max-width: 700px;
+      }
+    }
+
+    .seat-details {
+      display: grid;
+      gap: 16px;
+    }
+
+    @media (min-width: 768px) {
+      .seat-details {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .seat-details .detail-item:last-child {
+        grid-column: 1 / -1;
+      }
+    }
+
+    .detail-item {
+      display: grid;
+      gap: 6px;
+    }
+
+    .detail-label {
+      font-size: 12px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .detail-value {
+      font-size: 14px;
+      color: var(--text);
+      padding: 8px 12px;
+      background: rgba(15, 23, 42, 0.5);
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      word-break: break-word;
+    }
+
+    .detail-value.person {
+      display: grid;
+      gap: 4px;
+    }
+
+    .person-info {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px;
+      background: rgba(34, 197, 94, 0.1);
+      border-radius: 4px;
+      border: 1px solid rgba(34, 197, 94, 0.2);
+    }
+
+    .person-info.empty {
+      background: rgba(239, 68, 68, 0.1);
+      border-color: rgba(239, 68, 68, 0.2);
+      color: var(--muted);
+    }
+
+    .person-info.reserved {
+      background: rgba(251, 191, 36, 0.1);
+      border-color: rgba(251, 191, 36, 0.3);
+      color: #fbbf24;
+    }
+
+    .person-icon {
+      font-size: 16px;
+    }
+
+    .status-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .status-badge.occupied {
+      background: rgba(34, 197, 94, 0.2);
+      color: var(--good);
+    }
+
+    .status-badge.reserved {
+      background: rgba(251, 191, 36, 0.2);
+      color: #fbbf24;
+    }
+
+    .status-badge.empty {
+      background: rgba(100, 116, 139, 0.2);
+      color: var(--muted);
+    }
+
+    /* 响应式：移动设备 */
+    @media (max-width: 768px) {
+      #header {
+        padding: 10px 16px;
+        flex-direction: column;
+        gap: 12px;
+        align-items: stretch;
+      }
+
+      #title {
+        font-size: 16px;
+      }
+
+      #stats {
+        gap: 12px;
+        font-size: 12px;
+        flex-wrap: wrap;
+      }
+
+      .stat-value {
+        font-size: 14px;
+      }
+
+      #searchBox {
+        margin-left: 0;
+        padding-left: 0;
+        border-left: none;
+        width: 100%;
+      }
+
+      #searchInput {
+        width: 100%;
+        flex: 1;
+      }
+
+      #connectionStatus {
+        top: auto;
+        bottom: 10px;
+        right: 10px;
+        padding: 6px 12px;
+        font-size: 11px;
+      }
+
+      #canvas {
+        cursor: default;
+      }
+
+      #canvas.dragging {
+        cursor: default;
+      }
+
+      .modal-content {
+        max-width: 95%;
+        max-height: 95%;
+        padding: 16px;
+      }
+
+      .modal-title {
+        font-size: 18px;
+      }
+
+      .seat-item {
+        min-width: 60px;
+        min-height: 60px;
+        font-size: 10px;
+        padding: 6px 4px;
+      }
+
+      .seat-item-no {
+        font-size: 11px;
+      }
+
+      .seat-item-name {
+        font-size: 10px;
+      }
+
+      .seat-item-dept {
+        font-size: 9px;
+      }
+    }
+
+    @media (max-width: 1024px) {
+      #searchInput {
+        width: 160px;
+      }
+    }
+
+    /* 添加缩放提示 */
+    @media (max-width: 768px) {
+      #canvasContainer::after {
+        content: '双指缩放 · 单指拖动';
+        position: absolute;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(15, 23, 42, 0.9);
+        color: var(--muted);
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 11px;
+        pointer-events: none;
+        opacity: 0;
+        animation: fadeInOut 3s ease-in-out;
+      }
+
+      @keyframes fadeInOut {
+        0%, 100% { opacity: 0; }
+        10%, 90% { opacity: 0.8; }
+      }
+    }
+  </style>
+  <script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "https://hm.baidu.com/hm.js?40dc5f13fd5e0f47b4187f4e7b3d0941";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>
+</head>
+<body>
+  <div id="container">
+    <!-- 顶部信息栏 -->
+    <div id="header">
+      <div id="title">
+        <span>📍</span>
+        <span id="floorName">D座8层 数字孪生工位展示</span>
+      </div>
+      <div id="stats">
+        <div class="stat-item">
+          <span class="stat-label">总工位</span>
+          <span class="stat-value" id="totalSeats">0</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">已占用</span>
+          <span class="stat-value good" id="occupiedSeats">0</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">空闲</span>
+          <span class="stat-value warn" id="emptySeats">0</span>
+        </div>
+        <div id="searchBox" style="position: relative;">
+          <input type="text" id="searchInput" placeholder="搜索工位号/姓名/部门...">
+          <button id="searchClear" title="清除搜索">&times;</button>
+          <div id="searchResults"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 画布容器 -->
+    <div id="canvasContainer">
+      <canvas id="canvas"></canvas>
+      <div id="loading">
+        <div class="spinner"></div>
+        <div>加载中...</div>
+      </div>
+    </div>
+
+    <!-- 连接状态 -->
+    <div id="connectionStatus" class="disconnected">
+      <span class="status-dot"></span>
+      <span id="statusText">连接中...</span>
+    </div>
+
+    <!-- 区域座位布局模态框 -->
+    <div id="zoneLayoutModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 class="modal-title" id="zoneLayoutTitle">区域座位布局</h2>
+          <button class="modal-close" onclick="closeZoneLayout()">&times;</button>
+        </div>
+        <div id="zoneLayoutBody">
+          <div class="grid-info">
+            <div class="grid-info-item">
+              <span class="grid-info-label">区域代码</span>
+              <span class="grid-info-value" id="zoneCode">-</span>
+            </div>
+            <div class="grid-info-item">
+              <span class="grid-info-label">行数</span>
+              <span class="grid-info-value" id="zoneRows">-</span>
+            </div>
+            <div class="grid-info-item">
+              <span class="grid-info-label">列数</span>
+              <span class="grid-info-value" id="zoneCols">-</span>
+            </div>
+            <div class="grid-info-item">
+              <span class="grid-info-label">总工位</span>
+              <span class="grid-info-value" id="zoneTotalSeats">-</span>
+            </div>
+          </div>
+          <div id="seatGridContainer"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 工位详情模态框 -->
+    <div id="seatDetailsModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 class="modal-title" id="seatDetailsTitle">工位详情</h2>
+          <button class="modal-close" onclick="closeSeatDetails()">&times;</button>
+        </div>
+        <div class="seat-details" id="seatDetailsBody"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Socket.IO -->
+  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+
+  <script>
+    // ==================== 配置 ====================
+    const API_BASE = 'https://seat.dougge.top/api';
+    const WS_URL = 'https://seat.dougge.top/';
+    const FLOOR_ID = 'floor_d8';
+
+    // ==================== 状态 ====================
+    let state = {
+      floor: { id: FLOOR_ID, name: 'D座8层', canvasWidth: 1400, canvasHeight: 1100 },
+      zones: [],
+      seats: {},
+      searchResults: [], // 搜索结果
+      highlightedSeat: null, // 当前高亮的工位
+      imageCache: {} // 图片缓存
+    };
+
+    let canvas, ctx;
+    let canvasScale = 1; // 画布缩放比例，用于自适应
+
+    // 触摸和缩放控制
+    let touchState = {
+      scale: 1,          // 当前缩放倍数
+      minScale: 0.5,     // 最小缩放
+      maxScale: 3,       // 最大缩放
+      translateX: 0,     // 平移X
+      translateY: 0,     // 平移Y
+      isDragging: false, // 是否正在拖拽
+      lastTouchX: 0,     // 上次触摸X
+      lastTouchY: 0,     // 上次触摸Y
+      lastDistance: 0,   // 双指上次距离
+      touches: []        // 当前触摸点
+    };
+
+    // 项目组颜色映射
+    const deptColorMap = {};
+    const deptColors = [
+      '#3b82f6', // 蓝色
+      '#8b5cf6', // 紫色
+      '#ec4899', // 粉色
+      '#f59e0b', // 橙色
+      '#10b981', // 绿色
+      '#06b6d4', // 青色
+      '#f97316', // 深橙
+      '#84cc16', // 黄绿
+    ];
+
+    // 获取部门/项目组的颜色
+    function getDeptColor(dept) {
+      if (!dept) return '#6366f1'; // 默认颜色
+
+      // 如果已经分配过颜色，直接返回
+      if (deptColorMap[dept]) {
+        return deptColorMap[dept];
+      }
+
+      // 分配新颜色（循环使用颜色数组）
+      const colorIndex = Object.keys(deptColorMap).length % deptColors.length;
+      deptColorMap[dept] = deptColors[colorIndex];
+      return deptColorMap[dept];
+    }
+
+    // 判断工位状态
+    function getSeatStatus(seat) {
+      if (!seat.person) return 'empty';
+
+      const hasName = (seat.person.name || '').trim() !== '';
+      const hasDept = (seat.person.dept || '').trim() !== '';
+
+      if (hasName) return 'occupied'; // 已占用：有姓名
+      if (hasDept) return 'reserved'; // 预留：只有部门没有姓名
+      return 'empty'; // 空闲
+    }
+
+    // ==================== API 客户端 ====================
+    const api = {
+      async getFloorData(retries = 3) {
+        for (let i = 0; i < retries; i++) {
+          try {
+            console.log(`[API] 尝试加载数据 (${i + 1}/${retries})...`);
+
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 10000); // 10秒超时
+
+            const res = await fetch(`${API_BASE}/floors/${FLOOR_ID}`, {
+              signal: controller.signal,
+              headers: {
+                'Accept': 'application/json',
+                'Cache-Control': 'no-cache'
+              }
+            });
+
+            clearTimeout(timeoutId);
+
+            if (!res.ok) {
+              throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+            }
+
+            const data = await res.json();
+            console.log('[API] 数据加载成功');
+            return data.data;
+
+          } catch (error) {
+            console.warn(`[API] 尝试 ${i + 1} 失败:`, error.message);
+
+            if (i === retries - 1) {
+              // 最后一次重试也失败了
+              throw error;
+            }
+
+            // 等待后重试（指数退避）
+            await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
+          }
+        }
+      }
+    };
+
+    // ==================== WebSocket 同步 ====================
+    class DisplaySync {
+      constructor() {
+        this.socket = null;
+        this.isConnected = false;
+      }
+
+      initialize() {
+        this.socket = io(WS_URL, {
+          transports: ['websocket', 'polling'],
+          reconnection: true,
+          reconnectionDelay: 1000,
+          reconnectionDelayMax: 5000,
+          reconnectionAttempts: Infinity
+        });
+
+        // 连接成功
+        this.socket.on('connect', () => {
+          console.log('[Display] WebSocket 已连接');
+          this.isConnected = true;
+          this.updateConnectionStatus(true);
+          this.socket.emit('subscribe:floor', FLOOR_ID);
+        });
+
+        // 连接断开
+        this.socket.on('disconnect', () => {
+          console.log('[Display] WebSocket 已断开');
+          this.isConnected = false;
+          this.updateConnectionStatus(false);
+        });
+
+        // 接收初始数据
+        this.socket.on('sync:initial', ({ zones, seats }) => {
+          console.log('[Display] 收到 WebSocket 初始数据');
+          state.zones = zones.map(z => ({
+            ...z,
+            id: z.id || z._id?.toString() || z._id
+          }));
+          state.seats = this.convertSeatsToObject(seats);
+
+          // 隐藏加载动画（如果还在显示）
+          const loadingEl = document.getElementById('loading');
+          if (loadingEl && loadingEl.style.display !== 'none') {
+            loadingEl.style.display = 'none';
+            console.log('✓ WebSocket 数据加载完成');
+          }
+
+          render();
+        });
+
+        // 接收实时更新 - 区域更新
+        this.socket.on('zone:updated', ({ data }) => {
+          console.log('[Display] 区域已更新');
+          const index = state.zones.findIndex(z => z._id === data._id);
+          if (index !== -1) {
+            state.zones[index] = {
+              ...data,
+              id: data.id || data._id?.toString() || data._id
+            };
+          } else {
+            state.zones.push({
+              ...data,
+              id: data.id || data._id?.toString() || data._id
+            });
+          }
+          render();
+        });
+
+        // 接收实时更新 - 区域删除
+        this.socket.on('zone:deleted', ({ data }) => {
+          console.log('[Display] 区域已删除');
+          state.zones = state.zones.filter(z => z._id !== data._id);
+          render();
+        });
+
+        // 接收实时更新 - 工位更新
+        this.socket.on('seat:updated', ({ data }) => {
+          console.log('[Display] 工位已更新');
+          const seatId = data.seatNo
+            ? `${data.zoneId}::${data.seatNo}`
+            : `${data.zoneId}::${data.r}-${data.c}`;
+
+          // 删除旧的 seatId（如果编号改变）
+          const oldSeatId = Object.keys(state.seats).find(
+            key => state.seats[key]._id === data._id
+          );
+          if (oldSeatId && oldSeatId !== seatId) {
+            delete state.seats[oldSeatId];
+          }
+
+          state.seats[seatId] = data;
+          render();
+        });
+
+        // 接收实时更新 - 工位删除
+        this.socket.on('seat:deleted', ({ data }) => {
+          console.log('[Display] 工位已删除');
+          const seatId = Object.keys(state.seats).find(
+            key => state.seats[key]._id === data._id
+          );
+          if (seatId) {
+            delete state.seats[seatId];
+          }
+          render();
+        });
+      }
+
+      convertSeatsToObject(seatsArray) {
+        const seatsObj = {};
+        for (const seat of seatsArray) {
+          const seatId = seat.seatNo
+            ? `${seat.zoneId}::${seat.seatNo}`
+            : `${seat.zoneId}::${seat.r}-${seat.c}`;
+          seatsObj[seatId] = { ...seat, zoneId: seat.zoneId };
+        }
+        return seatsObj;
+      }
+
+      updateConnectionStatus(connected) {
+        const statusEl = document.getElementById('connectionStatus');
+        const statusText = document.getElementById('statusText');
+
+        if (connected) {
+          statusEl.className = 'connected';
+          statusText.textContent = '实时同步';
+        } else {
+          statusEl.className = 'disconnected';
+          statusText.textContent = '连接断开';
+        }
+      }
+    }
+
+    const displaySync = new DisplaySync();
+
+    // ==================== 渲染函数 ====================
+    function render() {
+      if (!ctx) return;
+
+      // 清空画布
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // 绘制所有区域
+      state.zones.forEach(zone => {
+        // 调试：检查zone.type
+        if (!zone.type) {
+          console.warn('区域缺少type字段:', zone.name, zone);
+        }
+        drawZone(zone);
+        drawSeatsInZone(zone);
+      });
+
+      // 更新统计
+      updateStats();
+    }
+
+    function drawZone(zone) {
+      // 如果区域有图片，绘制图片背景
+      if (zone.image) {
+        // 获取或加载图片
+        let img = state.imageCache[zone.image];
+        if (!img) {
+          img = new Image();
+          img.src = 'https://seat.dougge.top' + zone.image; // 使用API_BASE的域名
+          state.imageCache[zone.image] = img;
+
+          // 图片加载完成后重新渲染
+          img.onload = () => {
+            render();
+          };
+        }
+
+        // 如果图片已加载，绘制它
+        if (img.complete && img.naturalWidth > 0) {
+          ctx.save();
+
+          // 裁剪到区域范围
+          ctx.beginPath();
+          ctx.rect(zone.x, zone.y, zone.width, zone.height);
+          ctx.clip();
+
+          // 计算图片缩放和位置，保持宽高比并填充区域
+          const imgAspect = img.width / img.height;
+          const zoneAspect = zone.width / zone.height;
+
+          let drawWidth, drawHeight, drawX, drawY;
+
+          if (imgAspect > zoneAspect) {
+            // 图片更宽，以高度为准
+            drawHeight = zone.height;
+            drawWidth = drawHeight * imgAspect;
+            drawX = zone.x - (drawWidth - zone.width) / 2;
+            drawY = zone.y;
+          } else {
+            // 图片更高或相等，以宽度为准
+            drawWidth = zone.width;
+            drawHeight = drawWidth / imgAspect;
+            drawX = zone.x;
+            drawY = zone.y - (drawHeight - zone.height) / 2;
+          }
+
+          ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
+
+          // 绘制半透明遮罩，让文字更清晰
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+          ctx.fillRect(zone.x, zone.y, zone.width, zone.height);
+
+          ctx.restore();
+        } else {
+          // 图片未加载完成，使用默认背景
+          ctx.fillStyle = zone.color || '#6366f1';
+          ctx.globalAlpha = 0.1;
+          ctx.fillRect(zone.x, zone.y, zone.width, zone.height);
+          ctx.globalAlpha = 1;
+        }
+      } else {
+        // 没有图片，使用原来的背景色
+        ctx.fillStyle = zone.color || '#6366f1';
+        ctx.globalAlpha = 0.1;
+        ctx.fillRect(zone.x, zone.y, zone.width, zone.height);
+        ctx.globalAlpha = 1;
+      }
+
+      // 绘制区域边框
+      ctx.strokeStyle = zone.color || '#6366f1';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(zone.x, zone.y, zone.width, zone.height);
+
+      // 绘制区域标题背景（确保文字可见）
+      const titleHeight = 50;
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+      ctx.fillRect(zone.x, zone.y, zone.width, titleHeight);
+
+      // 绘制区域标题
+      ctx.fillStyle = zone.color || '#6366f1';
+      ctx.font = 'bold 16px Arial';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'top';
+      ctx.fillText(zone.name, zone.x + 10, zone.y + 10);
+
+      // 绘制区域代码或类型
+      ctx.fillStyle = 'rgba(226, 232, 240, 0.6)';
+      ctx.font = '12px Arial';
+      const zoneType = zone.type || 'seat';
+      if (zoneType === 'function') {
+      } else {
+        ctx.fillText(zone.code, zone.x + 10, zone.y + 32);
+      }
+    }
+
+    function drawSeatsInZone(zone) {
+      // 跳过非工位区域的工位绘制
+      const zoneType = zone.type || 'seat';
+      if (zoneType === 'function') return;
+
+      const rows = zone.rows;
+      const cols = zone.cols;
+
+      // 调试：检查 rows 和 cols
+      if (!rows || !cols) {
+        console.warn('区域缺少 rows 或 cols:', zone.name, 'rows:', rows, 'cols:', cols);
+        return;
+      }
+
+      const padding = 50;
+      const availableWidth = zone.width - padding * 2;
+      const availableHeight = zone.height - padding * 2;
+
+      if (availableWidth < 10 || availableHeight < 10) return;
+
+      const cellWidth = availableWidth / cols;
+      const cellHeight = availableHeight / rows;
+      const cellSize = Math.min(cellWidth, cellHeight);
+
+      if (cellSize < 3) return;
+
+      // 获取区域的工位
+      const zoneSeats = Object.values(state.seats)
+        .filter(s => s.zoneId === (zone._id?.toString() || zone.id))
+        .sort((a, b) => a.globalIdx - b.globalIdx);
+
+      // 调试：检查座位数据
+      //if (zoneSeats.length > 0) {
+      //  console.log('区域', zone.name, '有', zoneSeats.length, '个工位');
+      //  console.log('前3个工位的r/c:', zoneSeats.slice(0, 3).map(s => ({seatNo: s.seatNo, r: s.r, c: s.c})));
+      //}
+
+      const seatMap = {};
+      zoneSeats.forEach(s => {
+        const key = `${s.r}-${s.c}`;
+        seatMap[key] = s;
+      });
+
+      const startX = zone.x + padding;
+      const startY = zone.y + padding;
+
+      // 绘制工位网格
+      for (let r = 1; r <= rows; r++) {
+        for (let c = 1; c <= cols; c++) {
+          const x = startX + (c - 1) * cellSize;
+          const y = startY + (r - 1) * cellSize;
+
+          const key = `${r}-${c}`;
+          const seat = seatMap[key];
+
+          if (seat) {
+            const status = getSeatStatus(seat);
+            const isHighlighted = state.highlightedSeat &&
+              state.highlightedSeat._id === seat._id;
+            const isSearchResult = state.searchResults.some(s => s._id === seat._id);
+
+            // 获取颜色
+            let fillColor, strokeColor;
+
+            if (isHighlighted) {
+              // 高亮选中的工位（黄色发光效果）
+              fillColor = "rgba(251, 191, 36, 0.5)";
+              strokeColor = "#fbbf24";
+            } else if (isSearchResult) {
+              // 搜索结果工位（浅黄色）
+              fillColor = "rgba(251, 191, 36, 0.2)";
+              strokeColor = "rgba(251, 191, 36, 0.5)";
+            } else if (status === 'occupied') {
+              // 已占用：使用项目组颜色
+              const deptColor = getDeptColor(seat.person?.dept);
+              fillColor = deptColor + '33'; // 20% 透明度
+              strokeColor = deptColor + '80'; // 50% 透明度
+            } else if (status === 'reserved') {
+              // 预留：黄色虚线边框
+              fillColor = "rgba(251, 191, 36, 0.15)";
+              strokeColor = "rgba(251, 191, 36, 0.5)";
+            } else {
+              // 空闲
+              fillColor = "rgba(255, 255, 255, 0.05)";
+              strokeColor = "rgba(255, 255, 255, 0.15)";
+            }
+
+            // 绘制工位背景
+            ctx.fillStyle = fillColor;
+            ctx.fillRect(x, y, cellSize - 1, cellSize - 1);
+
+            // 绘制工位边框
+            ctx.strokeStyle = strokeColor;
+            ctx.lineWidth = isHighlighted ? 2 : (status === 'reserved' ? 1 : 0.5);
+
+            // 预留工位使用虚线
+            if (status === 'reserved' && !isHighlighted) {
+              ctx.setLineDash([3, 3]);
+            } else {
+              ctx.setLineDash([]);
+            }
+
+            ctx.strokeRect(x, y, cellSize - 1, cellSize - 1);
+            ctx.setLineDash([]); // 重置虚线
+
+            // 提取网络接口IP的最后两段
+            function getLastTwoSegments(ip) {
+              if (!ip || typeof ip !== 'string') return '';
+              const parts = ip.split('.');
+              if (parts.length >= 2) {
+                return parts.slice(-2).join('.');
+              }
+              return ip;
+            }
+
+            // 准备显示文本
+            const texts = [];
+
+            // 工位号
+            if (seat.seatNo) {
+              texts.push({ text: seat.seatNo, isMainText: true });
+            }
+
+            // 姓名
+            const personName = (seat.person?.name || '').trim();
+            if (personName) {
+              texts.push({ text: personName, isPersonName: true });
+            }
+
+            // 网络接口信息
+            if (seat.network) {
+              // W接口编码
+              if (seat.network.interfaceW) {
+                texts.push({ text: seat.network.interfaceW, isNetwork: true, isW: true });
+              }
+              // W接口IP最后两段
+              if (seat.network.ipW) {
+                const ipShort = getLastTwoSegments(seat.network.ipW);
+                texts.push({ text: ipShort, isNetwork: true, isW: true });
+              }
+              // S接口IP最后两段（如果存在，特殊标识）
+              if (seat.network.ipS) {
+                const ipShort = getLastTwoSegments(seat.network.ipS);
+                texts.push({ text: 'S:' + ipShort, isNetwork: true, isS: true });
+              }
+            }
+
+            // 绘制文本（如果单元格足够大）
+            if (cellSize >= 15 && texts.length > 0) {
+              const fontSize = Math.min(9, cellSize / 4);
+              const lineHeight = fontSize + 2;
+              const maxLines = Math.max(2, Math.floor((cellSize - 4) / lineHeight));
+              const visibleTexts = texts.slice(0, maxLines);
+              const startY = y + (cellSize - visibleTexts.length * lineHeight) / 2 + fontSize / 2;
+
+              visibleTexts.forEach((item, idx) => {
+                // 设置颜色
+                if (item.isMainText) {
+                  // 工位号
+                  if (isHighlighted || isSearchResult) {
+                    ctx.fillStyle = "#fbbf24";
+                  } else if (status === 'occupied') {
+                    ctx.fillStyle = getDeptColor(seat.person?.dept);
+                  } else if (status === 'reserved') {
+                    ctx.fillStyle = "#fbbf24";
+                  } else {
+                    ctx.fillStyle = "#9fb0d6";
+                  }
+                  ctx.font = `bold ${fontSize + 1}px Arial`;
+                }  else if (item.isPersonName) {
+                  // 使用人姓名
+                  ctx.fillStyle = status === 'occupied' ? getDeptColor(seat.person?.dept) : "#9fb0d6";
+                  ctx.font = `bold ${fontSize}px Arial`;
+                }else if (item.isNetwork) {
+                  // 网络接口信息
+                  if (item.isS) {
+                    // S接口用橙色标识
+                    ctx.fillStyle = "#ff9800";
+                    ctx.font = `bold ${fontSize - 1}px Arial`;
+                  } else {
+                    // W接口用普通颜色
+                    ctx.fillStyle = "rgba(159, 176, 214, 0.8)";
+                    ctx.font = `${fontSize - 1}px Arial`;
+                  }
+                }
+
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText(item.text, x + cellSize / 2, startY + idx * lineHeight, cellSize - 4);
+              });
+            }
+          }
+        }
+      }
+    }
+
+    function updateStats() {
+      // 只统计 type='seat' 的区域的工位数
+      const seatZones = state.zones.filter(z => (z.type || 'seat') === 'seat');
+      const seatZoneIds = new Set(seatZones.map(z => z._id?.toString() || z.id));
+
+      const allSeats = Object.values(state.seats).filter(s => seatZoneIds.has(s.zoneId));
+      const total = allSeats.length;
+      const occupied = allSeats.filter(s => getSeatStatus(s) === 'occupied').length;
+      const reserved = allSeats.filter(s => getSeatStatus(s) === 'reserved').length;
+      const empty = total - occupied - reserved;
+
+      document.getElementById('totalSeats').textContent = total;
+      document.getElementById('occupiedSeats').textContent = occupied + (reserved > 0 ? ` (+${reserved}预留)` : '');
+      document.getElementById('emptySeats').textContent = empty;
+    }
+
+    // ==================== 自适应画布 ====================
+    function resizeCanvas() {
+      const container = document.getElementById('canvasContainer');
+      const containerWidth = container.clientWidth;
+      const containerHeight = container.clientHeight;
+
+      const canvasWidth = state.floor.canvasWidth || 1200;
+      const canvasHeight = state.floor.canvasHeight || 800;
+
+      // 计算缩放比例，保持宽高比
+      const scaleX = containerWidth / canvasWidth;
+      const scaleY = containerHeight / canvasHeight;
+      canvasScale = Math.min(scaleX, scaleY) * 0.95; // 留5%边距
+
+      canvas.width = canvasWidth;
+      canvas.height = canvasHeight;
+
+      // 应用变换
+      applyCanvasTransform();
+
+      render();
+    }
+
+    // 应用画布变换（缩放 + 平移 + 居中）
+    function applyCanvasTransform() {
+      const container = document.getElementById('canvasContainer');
+      const containerWidth = container.clientWidth;
+      const containerHeight = container.clientHeight;
+
+      const totalScale = canvasScale * touchState.scale;
+
+      // 计算居中偏移量
+      const scaledWidth = canvas.width * totalScale;
+      const scaledHeight = canvas.height * totalScale;
+      const centerOffsetX = (containerWidth - scaledWidth) / 2;
+      const centerOffsetY = (containerHeight - scaledHeight) / 2;
+
+      // 应用缩放和平移（包括居中偏移）
+      const translateX = centerOffsetX + touchState.translateX;
+      const translateY = centerOffsetY + touchState.translateY;
+
+      canvas.style.transform = `translate(${translateX}px, ${translateY}px) scale(${totalScale})`;
+    }
+
+    // ==================== 触摸手势控制 ====================
+
+    // 计算两点间距离
+    function getDistance(touch1, touch2) {
+      const dx = touch2.clientX - touch1.clientX;
+      const dy = touch2.clientY - touch1.clientY;
+      return Math.sqrt(dx * dx + dy * dy);
+    }
+
+    // 计算两点中心
+    function getCenter(touch1, touch2) {
+      return {
+        x: (touch1.clientX + touch2.clientX) / 2,
+        y: (touch1.clientY + touch2.clientY) / 2
+      };
+    }
+
+    // 触摸开始
+    function handleTouchStart(e) {
+      // 注意：这里不立即进入拖拽，避免“轻触也被当成拖拽”，从而导致点击/弹窗失效
+      // 我们在 touchmove 中根据位移阈值判断是否进入拖拽
+      if (!e.touches || e.touches.length === 0) return;
+
+      touchState.touches = Array.from(e.touches);
+
+      if (touchState.touches.length === 1) {
+        const t = touchState.touches[0];
+
+        // 记录轻触起点，用于判定“点击”还是“拖拽”
+        touchState.tapStartX = t.clientX;
+        touchState.tapStartY = t.clientY;
+        touchState.tapMoved = false;
+
+        // 先不设置 isDragging
+        touchState.isDragging = false;
+
+        // 记录上一帧坐标（后续若进入拖拽用于计算 delta）
+        touchState.lastTouchX = t.clientX;
+        touchState.lastTouchY = t.clientY;
+
+        canvas.classList.remove('dragging');
+      } else if (touchState.touches.length === 2) {
+        // 双指：准备缩放（需要阻止页面滚动）
+        e.preventDefault();
+        touchState.isDragging = false;
+                touchState.lastDistance = getDistance(touchState.touches[0], touchState.touches[1]);
+        canvas.classList.remove('dragging');
+      }
+    }
+
+    // 触摸移动
+    function handleTouchMove(e) {
+      if (!e.touches || e.touches.length === 0) return;
+
+      touchState.touches = Array.from(e.touches);
+
+      if (touchState.touches.length === 1) {
+        const t = touchState.touches[0];
+
+        // 判定是否移动超过阈值：超过则进入拖拽
+        const dx = Math.abs(t.clientX - (touchState.tapStartX !== undefined ? touchState.tapStartX : t.clientX));
+        const dy = Math.abs(t.clientY - (touchState.tapStartY !== undefined ? touchState.tapStartY : t.clientY));
+        const THRESHOLD = 6; // px
+
+        if (dx > THRESHOLD || dy > THRESHOLD) {
+          touchState.tapMoved = true;
+          if (!touchState.isDragging) {
+            touchState.isDragging = true;
+            canvas.classList.add('dragging');
+            // 进入拖拽时，阻止页面滚动
+            e.preventDefault();
+          }
+        }
+
+        if (touchState.isDragging) {
+          // 单指拖拽
+          e.preventDefault();
+
+          const deltaX = t.clientX - touchState.lastTouchX;
+          const deltaY = t.clientY - touchState.lastTouchY;
+
+          touchState.translateX += deltaX;
+          touchState.translateY += deltaY;
+
+          touchState.lastTouchX = t.clientX;
+          touchState.lastTouchY = t.clientY;
+
+          applyCanvasTransform();
+        }
+      } else if (touchState.touches.length === 2) {
+        // 双指缩放
+        e.preventDefault();
+
+        const currentDistance = getDistance(touchState.touches[0], touchState.touches[1]);
+        const distanceRatio = currentDistance / touchState.lastDistance;
+
+        const newScale = touchState.scale * distanceRatio;
+
+        if (newScale >= touchState.minScale && newScale <= touchState.maxScale) {
+          const center = getCenter(touchState.touches[0], touchState.touches[1]);
+
+          const container = document.getElementById('canvasContainer');
+          const containerRect = container.getBoundingClientRect();
+
+          // 双指中心相对于容器的位置
+          const centerX = center.x - containerRect.left;
+          const centerY = center.y - containerRect.top;
+
+          // 当前总缩放
+          const oldTotalScale = canvasScale * touchState.scale;
+          const newTotalScale = canvasScale * newScale;
+          const scaleRatio = newTotalScale / oldTotalScale;
+
+          // 计算中心偏移的变化
+          const oldCenterOffsetX = (containerRect.width - canvas.width * oldTotalScale) / 2;
+          const newCenterOffsetX = (containerRect.width - canvas.width * newTotalScale) / 2;
+          const oldCenterOffsetY = (containerRect.height - canvas.height * oldTotalScale) / 2;
+          const newCenterOffsetY = (containerRect.height - canvas.height * newTotalScale) / 2;
+
+          // 调整平移，使双指中心位置对应的画布坐标保持不变
+          const centerOffsetX = centerX - oldCenterOffsetX;
+          const centerOffsetY = centerY - oldCenterOffsetY;
+
+          touchState.translateX = (oldCenterOffsetX - newCenterOffsetX) + touchState.translateX * scaleRatio + centerOffsetX * (1 - scaleRatio);
+          touchState.translateY = (oldCenterOffsetY - newCenterOffsetY) + touchState.translateY * scaleRatio + centerOffsetY * (1 - scaleRatio);
+          touchState.scale = newScale;
+          touchState.lastDistance = currentDistance;
+
+          applyCanvasTransform();
+        }
+      }
+    }
+
+    // 触摸结束
+    function handleTouchEnd(e) {
+      // 如果是“轻触”（没移动超过阈值），则把它当成点击，触发弹窗逻辑
+      // 注意：这里不要强行 preventDefault，否则部分浏览器会吞掉后续事件
+      const remaining = (e.touches && e.touches.length) ? e.touches.length : 0;
+
+      if (remaining === 0) {
+        if (!touchState.tapMoved && e.changedTouches && e.changedTouches.length > 0) {
+          const t = e.changedTouches[0];
+          // 复用既有点击逻辑（区域/工位命中测试 + 打开模态框）
+          handleCanvasClick({ clientX: t.clientX, clientY: t.clientY, type: 'touch' });
+        }
+
+        touchState.isDragging = false;
+        canvas.classList.remove('dragging');
+      } else if (remaining === 1) {
+        // 从双指变为单指：重置拖拽基点，但仍然不立即进入拖拽
+        const t = e.touches[0];
+        touchState.tapStartX = t.clientX;
+        touchState.tapStartY = t.clientY;
+        touchState.tapMoved = false;
+        touchState.isDragging = false;
+        touchState.lastTouchX = t.clientX;
+        touchState.lastTouchY = t.clientY;
+        canvas.classList.remove('dragging');
+      }
+    }
+
+    // PC端鼠标滚轮缩放
+    function handleWheel(e) {
+      e.preventDefault();
+
+      const container = document.getElementById('canvasContainer');
+      const containerRect = container.getBoundingClientRect();
+      const rect = canvas.getBoundingClientRect();
+
+      // 鼠标相对于容器的位置
+      const mouseX = e.clientX - containerRect.left;
+      const mouseY = e.clientY - containerRect.top;
+
+      // 当前总缩放
+      const oldTotalScale = canvasScale * touchState.scale;
+
+      // 计算缩放变化
+      const delta = e.deltaY > 0 ? 0.9 : 1.1;
+      const newScale = touchState.scale * delta;
+
+      // 限制缩放范围
+      if (newScale >= touchState.minScale && newScale <= touchState.maxScale) {
+        const newTotalScale = canvasScale * newScale;
+        const scaleRatio = newTotalScale / oldTotalScale;
+
+        // 计算中心偏移的变化
+        const oldCenterX = (containerRect.width - canvas.width * oldTotalScale) / 2;
+        const newCenterX = (containerRect.width - canvas.width * newTotalScale) / 2;
+        const oldCenterY = (containerRect.height - canvas.height * oldTotalScale) / 2;
+        const newCenterY = (containerRect.height - canvas.height * newTotalScale) / 2;
+
+        // 调整平移，使鼠标位置对应的画布坐标保持不变
+        const mouseOffsetX = mouseX - oldCenterX;
+        const mouseOffsetY = mouseY - oldCenterY;
+
+        touchState.translateX = (oldCenterX - newCenterX) + touchState.translateX * scaleRatio + mouseOffsetX * (1 - scaleRatio);
+        touchState.translateY = (oldCenterY - newCenterY) + touchState.translateY * scaleRatio + mouseOffsetY * (1 - scaleRatio);
+        touchState.scale = newScale;
+
+        applyCanvasTransform();
+      }
+    }
+
+    // PC端鼠标拖拽
+    let mouseState = {
+      isDragging: false,
+      lastX: 0,
+      lastY: 0
+    };
+
+    function handleMouseDown(e) {
+      if (e.button === 0) { // 左键
+        mouseState.isDragging = true;
+        mouseState.lastX = e.clientX;
+        mouseState.lastY = e.clientY;
+        canvas.classList.add('dragging');
+      }
+    }
+
+    function handleMouseMove(e) {
+      if (mouseState.isDragging) {
+        const deltaX = e.clientX - mouseState.lastX;
+        const deltaY = e.clientY - mouseState.lastY;
+
+        touchState.translateX += deltaX;
+        touchState.translateY += deltaY;
+
+        mouseState.lastX = e.clientX;
+        mouseState.lastY = e.clientY;
+
+        applyCanvasTransform();
+      }
+    }
+
+    function handleMouseUp(e) {
+      if (e.button === 0) {
+        mouseState.isDragging = false;
+        canvas.classList.remove('dragging');
+      }
+    }
+
+    // 设置触摸和鼠标事件
+    function setupCanvasInteraction() {
+      // 触摸事件（移动端）
+      canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
+      canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
+      canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
+      canvas.addEventListener('touchcancel', handleTouchEnd, { passive: false });
+
+      // 鼠标事件（PC端）
+      canvas.addEventListener('mousedown', handleMouseDown);
+      canvas.addEventListener('mousemove', handleMouseMove);
+      canvas.addEventListener('mouseup', handleMouseUp);
+      canvas.addEventListener('mouseleave', handleMouseUp);
+
+      // 滚轮缩放（PC端）
+      canvas.addEventListener('wheel', handleWheel, { passive: false });
+
+      console.log('✓ 画布交互已设置（支持双指缩放和拖拽）');
+    }
+
+    // ==================== 初始化 ====================
+    async function init() {
+      canvas = document.getElementById('canvas');
+      ctx = canvas.getContext('2d');
+
+      // 先初始化 WebSocket（即使 REST API 失败也能获取数据）
+      displaySync.initialize();
+
+      // 设置画布大小
+      resizeCanvas();
+
+      // 监听窗口大小变化
+      window.addEventListener('resize', resizeCanvas);
+
+      // 设置画布点击事件
+      setupCanvasClickHandler();
+
+      // 设置画布交互（缩放和拖拽）
+      setupCanvasInteraction();
+
+      // 设置模态框事件监听器
+      setupModalListeners();
+
+      // 设置搜索功能
+      setupSearch();
+
+      try {
+        // 尝试加载初始数据
+        console.log('⏳ 从 REST API 加载数据...');
+        const data = await api.getFloorData();
+
+        state.floor = data.floor;
+        state.zones = data.zones.map(z => ({
+          ...z,
+          id: z.id || z._id?.toString() || z._id
+        }));
+
+        // 转换工位数据
+        const seatsObj = {};
+        for (const seat of data.seats) {
+          const seatId = seat.seatNo
+            ? `${seat.zoneId}::${seat.seatNo}`
+            : `${seat.zoneId}::${seat.r}-${seat.c}`;
+          seatsObj[seatId] = seat;
+        }
+        state.seats = seatsObj;
+
+        // 更新标题
+        document.getElementById('floorName').textContent = data.floor.name || 'D座8层';
+
+        // 隐藏加载动画
+        document.getElementById('loading').style.display = 'none';
+
+        console.log('✓ REST API 数据加载完成');
+
+        // 渲染
+        render();
+
+      } catch (error) {
+        console.warn('✗ REST API 加载失败，等待 WebSocket 数据...', error.message);
+
+        // REST API 失败，显示等待 WebSocket 的提示
+        document.getElementById('loading').innerHTML = `
+          <div class="spinner"></div>
+          <div>等待实时数据连接...</div>
+          <div style="font-size: 12px; color: var(--muted); margin-top: 8px;">
+            REST API 不可用，将通过 WebSocket 获取数据
+          </div>
+        `;
+
+        // 设置超时：如果 30 秒内 WebSocket 也没有数据，显示错误
+        setTimeout(() => {
+          if (state.zones.length === 0) {
+            document.getElementById('loading').innerHTML = `
+              <div style="color: var(--bad); font-size: 14px;">❌ 无法连接到服务器</div>
+              <div style="font-size: 12px; color: var(--muted); margin-top: 8px;">
+                REST API: ${error.message}<br>
+                WebSocket: 连接超时
+              </div>
+              <button onclick="location.reload()" style="
+                margin-top: 16px;
+                padding: 8px 16px;
+                background: var(--good);
+                color: white;
+                border: none;
+                border-radius: 6px;
+                cursor: pointer;
+                font-size: 14px;
+              ">重新加载</button>
+            `;
+          }
+        }, 30000);
+      }
+    }
+
+    // 页面加载完成后初始化
+    document.addEventListener('DOMContentLoaded', init);
+
+    // ==================== 交互功能 ====================
+
+    // 画布点击事件（需要在 init 后调用）
+    function setupCanvasClickHandler() {
+      canvas.addEventListener('click', handleCanvasClick);
+    }
+
+    function handleCanvasClick(e) {
+      // 如果正在拖拽，不触发点击
+      if (mouseState.isDragging || touchState.isDragging) {
+        return;
+      }
+
+      const rect = canvas.getBoundingClientRect();
+
+      // 获取点击位置相对于画布的坐标（考虑缩放和平移）
+      // getBoundingClientRect() 已经包含了所有transform的影响
+      // 所以只需要将屏幕坐标转换为画布坐标
+      const totalScale = canvasScale * touchState.scale;
+
+      // 将点击位置转换为画布坐标
+      const x = (e.clientX - rect.left) / totalScale;
+      const y = (e.clientY - rect.top) / totalScale;
+
+      console.log('画布点击:', { x, y, zones: state.zones.length });
+
+      // 检测点击的区域
+      for (let i = state.zones.length - 1; i >= 0; i--) {
+        const zone = state.zones[i];
+
+        if (x >= zone.x && x <= zone.x + zone.width &&
+            y >= zone.y && y <= zone.y + zone.height) {
+          // 判断区域类型
+          const zoneType = zone.type || 'seat';
+          console.log('点击区域:', zone.name, '类型:', zoneType);
+
+          if (zoneType === 'function') {
+            // 功能区域：显示功能区域信息弹窗
+            showFunctionZoneInfo(zone);
+          } else {
+            // 工位区域：打开座位布局弹窗
+            showZoneLayout(zone);
+          }
+          return;
+        }
+      }
+      console.log('未点击任何区域');
+    }
+
+    // 检测工位点击
+    function detectSeatClick(x, y, zone) {
+      const padding = 50;
+      const availableWidth = zone.width - padding * 2;
+      const availableHeight = zone.height - padding * 2;
+
+      if (availableWidth < 10 || availableHeight < 10) return null;
+
+      const cellWidth = availableWidth / zone.cols;
+      const cellHeight = availableHeight / zone.rows;
+      const cellSize = Math.min(cellWidth, cellHeight);
+
+      if (cellSize < 3) return null;
+
+      const startX = zone.x + padding;
+      const startY = zone.y + padding;
+
+      // 计算点击的行列
+      const relX = x - startX;
+      const relY = y - startY;
+
+      if (relX < 0 || relY < 0) return null;
+
+      const col = Math.floor(relX / cellSize) + 1;
+      const row = Math.floor(relY / cellSize) + 1;
+
+      if (row > zone.rows || col > zone.cols) return null;
+
+      // 查找对应的工位
+      const zoneSeats = Object.values(state.seats)
+        .filter(s => s.zoneId === (zone._id?.toString() || zone.id));
+
+      const seat = zoneSeats.find(s => s.r === row && s.c === col);
+      return seat || null;
+    }
+
+    // 显示区域布局模态框
+    function showZoneLayout(zone) {
+      // 如果是功能区域，调用功能区域信息显示
+      const zoneType = zone.type || 'seat';
+      if (zoneType === 'function') {
+        showFunctionZoneInfo(zone);
+        return;
+      }
+
+      // 设置标题和信息
+      document.getElementById('zoneLayoutTitle').textContent = `${zone.name} - 座位布局`;
+      document.getElementById('zoneCode').textContent = zone.code;
+      document.getElementById('zoneRows').textContent = zone.rows;
+      document.getElementById('zoneCols').textContent = zone.cols;
+      document.getElementById('zoneTotalSeats').textContent = zone.count;
+
+      // 获取区域的所有工位
+      const zoneSeats = Object.values(state.seats)
+        .filter(s => s.zoneId === (zone._id?.toString() || zone.id))
+        .sort((a, b) => a.globalIdx - b.globalIdx);
+
+      const seatMap = {};
+      zoneSeats.forEach(s => {
+        const key = `${s.r}-${s.c}`;
+        seatMap[key] = s;
+      });
+
+      // 生成座位网格
+      const gridContainer = document.getElementById('seatGridContainer');
+
+      // 如果区域有图片，在网格前添加图片预览
+      let imageHtml = '';
+      if (zone.image) {
+        imageHtml = `
+          <div style="margin-bottom: 16px; border-radius: 8px; overflow: hidden; border: 1px solid var(--border);">
+            <img src="https://seat.dougge.top${zone.image}"
+                 alt="${zone.name}"
+                 style="width: 100%; height: auto; max-height: 400px; object-fit: contain; background: rgba(15, 23, 42, 0.5);"
+                 onerror="this.style.display='none'">
+          </div>
+        `;
+      }
+
+      const grid = document.createElement('div');
+      grid.className = 'seat-grid';
+      grid.style.gridTemplateColumns = `repeat(${zone.cols}, 1fr)`;
+
+      for (let r = 1; r <= zone.rows; r++) {
+        for (let c = 1; c <= zone.cols; c++) {
+          const key = `${r}-${c}`;
+          const seat = seatMap[key];
+
+          const seatDiv = document.createElement('div');
+
+          if (seat) {
+            const status = getSeatStatus(seat);
+            const deptColor = seat.person?.dept ? getDeptColor(seat.person.dept) : null;
+
+            seatDiv.className = `seat-item ${status}`;
+
+            // 如果有项目组，设置项目组颜色
+            if (deptColor && status !== 'empty') {
+              if (status === 'occupied') {
+                seatDiv.style.background = deptColor + '33'; // 20% 透明度
+                seatDiv.style.borderColor = deptColor + '80'; // 50% 透明度
+                seatDiv.style.color = deptColor;
+              } else if (status === 'reserved') {
+                seatDiv.style.borderColor = deptColor + '80';
+                seatDiv.style.color = deptColor;
+              }
+            }
+
+            // 工位编号
+            const seatNo = document.createElement('div');
+            seatNo.className = 'seat-item-no';
+            seatNo.textContent = seat.seatNo || `${r}-${c}`;
+            seatDiv.appendChild(seatNo);         
+
+            if (status === 'occupied') {
+              // 已占用：显示姓名
+              const personName = document.createElement('div');
+              personName.className = 'seat-item-name';
+              personName.textContent = seat.person.name.trim();
+              personName.title = seat.person.name.trim();
+              seatDiv.appendChild(personName);
+
+              // 部门/项目组
+              if (seat.person.dept) {
+                const personDept = document.createElement('div');
+                personDept.className = 'seat-item-dept';
+                personDept.textContent = seat.person.dept;
+                personDept.title = seat.person.dept;
+                seatDiv.appendChild(personDept);
+              }
+            } else if (status === 'reserved') {
+              // 预留：显示预留标识
+              const reservedLabel = document.createElement('div');
+              reservedLabel.className = 'seat-item-name';
+              reservedLabel.textContent = '预留';
+              seatDiv.appendChild(reservedLabel);
+
+              // 部门/项目组
+              if (seat.person.dept) {
+                const personDept = document.createElement('div');
+                personDept.className = 'seat-item-dept';
+                personDept.textContent = seat.person.dept;
+                personDept.title = seat.person.dept;
+                seatDiv.appendChild(personDept);
+              }
+            } else {
+              // 空闲标识
+              const emptyLabel = document.createElement('div');
+              emptyLabel.className = 'seat-item-name';
+              emptyLabel.textContent = '空闲';
+              seatDiv.appendChild(emptyLabel);
+            }
+			// 网络接口信息
+            if (seat.network) {
+              const getLastTwoSegments = (ip) => {
+                if (!ip || typeof ip !== 'string') return '';
+                const parts = ip.split('.');
+                if (parts.length >= 2) {
+                  return parts.slice(-2).join('.');
+                }
+                return ip;
+              };
+
+              // W接口编码
+              if (seat.network.interfaceW) {
+                const networkDiv = document.createElement('div');
+                networkDiv.style.fontSize = '10px';
+                networkDiv.style.color = 'rgba(159, 176, 214, 0.8)';
+                networkDiv.style.marginTop = '2px';
+                networkDiv.textContent = seat.network.interfaceW;
+                seatDiv.appendChild(networkDiv);
+              }
+
+              // W接口IP最后两段
+              if (seat.network.ipW) {
+                const networkDiv = document.createElement('div');
+                networkDiv.style.fontSize = '10px';
+                networkDiv.style.color = 'rgba(159, 176, 214, 0.8)';
+                networkDiv.style.marginTop = '2px';
+                networkDiv.textContent = getLastTwoSegments(seat.network.ipW);
+                seatDiv.appendChild(networkDiv);
+              }
+
+              // S接口IP最后两段（特殊标识）
+              if (seat.network.ipS) {
+                const networkDiv = document.createElement('div');
+                networkDiv.style.fontSize = '10px';
+                networkDiv.style.color = '#ff9800';
+                networkDiv.style.fontWeight = 'bold';
+                networkDiv.style.marginTop = '2px';
+                networkDiv.textContent = 'S:' + getLastTwoSegments(seat.network.ipS);
+                seatDiv.appendChild(networkDiv);
+              }
+            }
+            seatDiv.onclick = () => {
+              //closeZoneLayout();
+              showSeatDetails(seat);
+            };
+          } else {
+            seatDiv.className = 'seat-item unavailable';
+            seatDiv.textContent = '-';
+          }
+
+          grid.appendChild(seatDiv);
+        }
+      }
+
+      gridContainer.innerHTML = imageHtml;
+      gridContainer.appendChild(grid);
+
+      // 显示模态框
+      document.getElementById('zoneLayoutModal').classList.add('active');
+    }
+
+    // 关闭区域布局模态框
+    function closeZoneLayout() {
+      document.getElementById('zoneLayoutModal').classList.remove('active');
+    }
+
+    // 显示工位详情模态框
+    function showSeatDetails(seat) {
+      // 查找所属区域
+      const zone = state.zones.find(z =>
+        (z._id?.toString() || z.id) === seat.zoneId
+      );
+
+      const status = getSeatStatus(seat);
+      const deptColor = seat.person?.dept ? getDeptColor(seat.person.dept) : null;
+
+      // 设置标题
+      const seatTitle = seat.seatNo || `${seat.r}-${seat.c}`;
+      document.getElementById('seatDetailsTitle').textContent = `工位 ${seatTitle}`;
+
+      // 构建详情内容
+      const detailsBody = document.getElementById('seatDetailsBody');
+      detailsBody.innerHTML = `
+        <div class="detail-item">
+          <div class="detail-label">工位编号</div>
+          <div class="detail-value">${seat.seatNo || '未分配'}</div>
+        </div>
+
+        <div class="detail-item">
+          <div class="detail-label">所属区域</div>
+          <div class="detail-value">${zone ? zone.name : '未知'} (${zone ? zone.code : '-'})</div>
+        </div>
+
+        <div class="detail-item">
+          <div class="detail-label">位置</div>
+          <div class="detail-value">第 ${seat.r} 行，第 ${seat.c} 列</div>
+        </div>
+
+        <div class="detail-item">
+          <div class="detail-label">使用状态</div>
+          <div class="detail-value">
+            <span class="status-badge ${status}">${
+              status === 'occupied' ? '已占用' :
+              status === 'reserved' ? '已预留' : '空闲'
+            }</span>
+          </div>
+        </div>
+
+        ${status === 'occupied' ? `
+          <div class="detail-item">
+            <div class="detail-label">使用人员</div>
+            <div class="detail-value person">
+              <div class="person-info" style="${deptColor ? `border-color: ${deptColor}80; background: ${deptColor}1A;` : ''}">
+                <span class="person-icon">👤</span>
+                <div>
+                  <div style="font-weight: 600; ${deptColor ? `color: ${deptColor};` : ''}">${seat.person.name}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        ` : ''}
+
+        ${status === 'reserved' ? `
+          <div class="detail-item">
+            <div class="detail-label">预留信息</div>
+            <div class="detail-value person">
+              <div class="person-info reserved" style="${deptColor ? `border-color: ${deptColor}80; background: ${deptColor}1A; color: ${deptColor};` : ''}">
+                <span class="person-icon">📌</span>
+                <div>
+                  <div style="font-weight: 600;">预留给项目组</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        ` : ''}
+
+        ${status === 'empty' ? `
+          <div class="detail-item">
+            <div class="detail-label">空闲工位</div>
+            <div class="detail-value person">
+              <div class="person-info empty">
+                <span class="person-icon">🚫</span>
+                <span>暂无人员</span>
+              </div>
+            </div>
+          </div>
+        ` : ''}
+
+        ${seat.person?.dept ? `
+          <div class="detail-item">
+            <div class="detail-label">产线/项目组</div>
+            <div class="detail-value" style="${deptColor ? `border-color: ${deptColor}40; color: ${deptColor}; font-weight: 600;` : ''}">${seat.person.dept}</div>
+          </div>
+        ` : ''}
+
+        ${seat.network?.interfaceS ? `
+          <div class="detail-item">
+            <div class="detail-label">S接口编号</div>
+            <div class="detail-value person">
+              <div class="person-info">
+                <span class="person-icon">🔌</span>
+                <span>${seat.network.interfaceS}</span>
+              </div>
+            </div>
+          </div>
+        ` : ''}
+
+        ${seat.network?.interfaceW ? `
+          <div class="detail-item">
+            <div class="detail-label">W接口编号</div>
+            <div class="detail-value person">
+              <div class="person-info">
+                <span class="person-icon">🔌</span>
+                <span>${seat.network.interfaceW}</span>
+              </div>
+            </div>
+          </div>
+        ` : ''}
+
+        ${seat.network?.ipS ? `
+          <div class="detail-item">
+            <div class="detail-label">S接口IP</div>
+            <div class="detail-value person">
+              <div class="person-info">
+                <span class="person-icon">🌐</span>
+                <span>${seat.network.ipS}</span>
+              </div>
+            </div>
+          </div>
+        ` : ''}
+
+        ${seat.network?.ipW ? `
+          <div class="detail-item">
+            <div class="detail-label">W接口IP</div>
+            <div class="detail-value person">
+              <div class="person-info">
+                <span class="person-icon">🌐</span>
+                <span>${seat.network.ipW}</span>
+              </div>
+            </div>
+          </div>
+        ` : ''}
+		
+        ${seat.person?.note ? `
+          <div class="detail-item">
+            <div class="detail-label">备注</div>
+            <div class="detail-value">${seat.person.note}</div>
+          </div>
+        ` : ''}
+      `;
+
+      // 显示模态框
+      document.getElementById('seatDetailsModal').classList.add('active');
+    }
+
+    // 关闭工位详情模态框
+    function closeSeatDetails() {
+      document.getElementById('seatDetailsModal').classList.remove('active');
+    }
+
+    // 显示功能区域信息
+    function showFunctionZoneInfo(zone) {
+      console.log('显示功能区域信息:', zone);
+
+      // 复用工位详情模态框显示功能区域信息
+      document.getElementById('seatDetailsTitle').textContent = zone.name;
+
+      const detailsBody = document.getElementById('seatDetailsBody');
+
+      // 构建功能区域详情内容
+      let imageHtml = '';
+      if (zone.image) {
+        imageHtml = `
+          <div class="detail-item" style="grid-column: 1 / -1;">
+            <div class="detail-label">区域图片</div>
+            <div class="detail-value">
+              <img src="https://seat.dougge.top${zone.image}"
+                   style="max-width: 100%; max-height: 300px; border-radius: 6px; display: block;"
+                   onerror="this.style.display='none';" />
+            </div>
+          </div>
+        `;
+      }
+
+      detailsBody.innerHTML = `
+               ${imageHtml}
+      `;
+
+      // 显示模态框
+      document.getElementById('seatDetailsModal').classList.add('active');
+    }
+
+    // ==================== 搜索功能 ====================
+
+    let searchInput, searchClear, searchResults;
+
+    // 初始化搜索功能
+    function setupSearch() {
+      searchInput = document.getElementById('searchInput');
+      searchClear = document.getElementById('searchClear');
+      searchResults = document.getElementById('searchResults');
+
+      if (!searchInput || !searchClear || !searchResults) {
+        console.error('搜索元素未找到');
+        return;
+      }
+
+      // 搜索输入事件
+      searchInput.addEventListener('input', (e) => {
+        performSearch(e.target.value);
+      });
+
+      // 点击清除按钮
+      searchClear.addEventListener('click', clearSearch);
+
+      // 点击搜索框外部关闭结果列表
+      document.addEventListener('click', (e) => {
+        if (!searchInput.contains(e.target) &&
+            !searchResults.contains(e.target) &&
+            !searchClear.contains(e.target)) {
+          searchResults.classList.remove('active');
+        }
+      });
+
+      // 搜索框获得焦点时，如果有结果则显示
+      searchInput.addEventListener('focus', () => {
+        if (state.searchResults.length > 0) {
+          searchResults.classList.add('active');
+        }
+      });
+
+      console.log('✓ 搜索功能已初始化');
+    }
+
+    // 搜索函数
+    function performSearch(query) {
+      query = query.trim().toLowerCase();
+
+      if (!query) {
+        state.searchResults = [];
+        state.highlightedSeat = null;
+        searchResults.classList.remove('active');
+        searchClear.classList.remove('active');
+        render();
+        return;
+      }
+
+      // 显示清除按钮
+      searchClear.classList.add('active');
+
+      // 搜索所有工位
+      const allSeats = Object.values(state.seats);
+      const results = allSeats.filter(seat => {
+        // 搜索工位号
+        if (seat.seatNo && seat.seatNo.toLowerCase().includes(query)) {
+          return true;
+        }
+
+        // 搜索人员信息（不包括工号和电话）
+        if (seat.person) {
+          const name = (seat.person.name || '').toLowerCase();
+          const dept = (seat.person.dept || '').toLowerCase();
+
+          if (name.includes(query) || dept.includes(query)) {
+            return true;
+          }
+        }
+
+        return false;
+      });
+
+      state.searchResults = results;
+
+      // 显示搜索结果列表
+      displaySearchResults(results, query);
+
+      // 高亮所有搜索结果
+      render();
+    }
+
+    // 显示搜索结果下拉列表
+    function displaySearchResults(results, query) {
+      if (results.length === 0) {
+        searchResults.innerHTML = `
+          <div class="search-result-empty">
+            未找到匹配 "${query}" 的工位
+          </div>
+        `;
+        searchResults.classList.add('active');
+        return;
+      }
+
+      let html = '';
+      results.forEach(seat => {
+        const zone = state.zones.find(z =>
+          (z._id?.toString() || z.id) === seat.zoneId
+        );
+        const status = getSeatStatus(seat);
+        const statusText = status === 'occupied' ? '已占用' :
+                          status === 'reserved' ? '已预留' : '空闲';
+
+        html += `
+          <div class="search-result-item" onclick="selectSearchResult('${seat._id}')">
+            <div class="search-result-main">
+              <div class="search-result-seat">
+                🎯 工位 ${seat.seatNo || `${seat.r}-${seat.c}`} · ${statusText}
+              </div>
+              ${status === 'occupied' ? `
+                <div class="search-result-person">
+                  👤 ${seat.person.name}
+                </div>
+              ` : ''}
+              ${status === 'reserved' ? `
+                <div class="search-result-person">
+                  📌 预留给 ${seat.person.dept}
+                </div>
+              ` : ''}
+              <div class="search-result-zone">
+                📍 ${zone ? zone.name : '未知区域'} · 第${seat.r}行第${seat.c}列
+              </div>
+            </div>
+          </div>
+        `;
+      });
+
+      searchResults.innerHTML = html;
+      searchResults.classList.add('active');
+    }
+
+    // 选择搜索结果
+    window.selectSearchResult = function(seatId) {
+      const seat = Object.values(state.seats).find(s => s._id === seatId);
+      if (!seat) return;
+
+      // 高亮选中的工位
+      state.highlightedSeat = seat;
+      render();
+
+      // 隐藏搜索结果列表
+      searchResults.classList.remove('active');
+
+      // 显示工位详情
+      setTimeout(() => {
+        showSeatDetails(seat);
+      }, 100);
+    };
+
+    // 清除搜索
+    function clearSearch() {
+      if (searchInput) {
+        searchInput.value = '';
+      }
+      state.searchResults = [];
+      state.highlightedSeat = null;
+      if (searchResults) {
+        searchResults.classList.remove('active');
+      }
+      if (searchClear) {
+        searchClear.classList.remove('active');
+      }
+      render();
+    }
+
+    // ==================== 模态框事件监听器 ====================
+
+    function setupModalListeners() {
+      // 点击模态框背景关闭
+      document.getElementById('zoneLayoutModal').addEventListener('click', (e) => {
+        if (e.target.id === 'zoneLayoutModal') {
+          closeZoneLayout();
+        }
+      });
+
+      document.getElementById('seatDetailsModal').addEventListener('click', (e) => {
+        if (e.target.id === 'seatDetailsModal') {
+          closeSeatDetails();
+        }
+      });
+
+      // ESC 键关闭模态框
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+          closeZoneLayout();
+          closeSeatDetails();
+          clearSearch();
+        }
+      });
+
+      console.log('✓ 模态框事件监听器已设置');
+    }
+  </script>
+</body>
+</html>

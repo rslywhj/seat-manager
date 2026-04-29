@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>数据同步调试工具</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+      background: #0b1220;
+      color: #e8eefc;
+    }
+    h1 { color: #6366f1; }
+    h2 {
+      margin-top: 30px;
+      color: #f59e0b;
+      border-bottom: 2px solid #223056;
+      padding-bottom: 8px;
+    }
+    .status {
+      padding: 15px;
+      border-radius: 8px;
+      margin: 10px 0;
+      font-family: 'Courier New', monospace;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    .success { background: #16a34a20; border-left: 4px solid #22c55e; }
+    .error { background: #dc262620; border-left: 4px solid #ef4444; }
+    .info { background: #2563eb20; border-left: 4px solid #3b82f6; }
+    .warn { background: #ea580c20; border-left: 4px solid #f59e0b; }
+    button {
+      background: #6366f1;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 5px;
+      cursor: pointer;
+      margin: 5px;
+      font-size: 14px;
+    }
+    button:hover { background: #4f46e5; }
+    button:disabled {
+      background: #64748b;
+      cursor: not-allowed;
+    }
+    .btn-danger { background: #ef4444; }
+    .btn-danger:hover { background: #dc2626; }
+    .test-section {
+      background: #111a2e;
+      padding: 20px;
+      border-radius: 8px;
+      margin: 15px 0;
+    }
+    input, select {
+      width: 100%;
+      padding: 8px;
+      margin: 5px 0;
+      background: #0f1730;
+      border: 1px solid #223056;
+      color: #e8eefc;
+      border-radius: 4px;
+    }
+    label {
+      display: block;
+      margin-top: 10px;
+      color: #9fb0d6;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 15px;
+      margin: 20px 0;
+    }
+    code {
+      background: #0f1730;
+      padding: 2px 6px;
+      border-radius: 3px;
+      color: #22c55e;
+    }
+  </style>
+</head>
+<body>
+
+<h1>🔍 数据同步调试工具</h1>
+<p>此工具帮助你诊断前端到后端的数据同步问题</p>
+
+<div class="test-section">
+  <h2>配置信息</h2>
+  <label>API Base URL:</label>
+  <input type="text" id="apiBase" value="https://seat.dougge.top/api" />
+
+  <label>WebSocket URL:</label>
+  <input type="text" id="wsUrl" value="https://seat.dougge.top/" />
+
+  <label>Floor ID:</label>
+  <input type="text" id="floorId" value="floor_d8" />
+</div>
+
+<div class="test-section">
+  <h2>1. API 连接测试</h2>
+  <div class="grid">
+    <button onclick="testHealth()">测试健康检查</button>
+    <button onclick="testGetFloorData()">测试获取楼层数据</button>
+    <button onclick="testGetZones()">测试获取区域</button>
+    <button onclick="testGetSeats()">测试获取工位</button>
+  </div>
+  <div id="apiTestResult"></div>
+</div>
+
+<div class="test-section">
+  <h2>2. WebSocket 连接测试</h2>
+  <button onclick="connectWebSocket()" id="wsConnectBtn">连接 WebSocket</button>
+  <button onclick="disconnectWebSocket()" id="wsDisconnectBtn" disabled>断开 WebSocket</button>
+  <button onclick="subscribeFloor()" id="wsSubscribeBtn" disabled>订阅楼层</button>
+  <button onclick="requestSync()" id="wsSyncBtn" disabled>请求增量同步</button>
+  <div id="wsTestResult"></div>
+</div>
+
+<div class="test-section">
+  <h2>3. 数据写入测试</h2>
+
+  <h3>创建测试区域</h3>
+  <label>区域名称:</label>
+  <input type="text" id="testZoneName" value="测试区域" />
+  <label>区域编码:</label>
+  <input type="text" id="testZoneCode" value="TEST" />
+  <button onclick="testCreateZone()">创建区域</button>
+
+  <h3>更新测试区域</h3>
+  <label>区域 ID:</label>
+  <input type="text" id="updateZoneId" placeholder="输入区域 ID" />
+  <label>新名称:</label>
+  <input type="text" id="updateZoneName" value="更新后的区域" />
+  <button onclick="testUpdateZone()">更新区域</button>
+
+  <h3>更新测试工位</h3>
+  <label>工位 ID:</label>
+  <input type="text" id="updateSeatId" placeholder="输入工位 ID" />
+  <label>姓名:</label>
+  <input type="text" id="updatePersonName" value="测试用户" />
+  <label>部门:</label>
+  <input type="text" id="updatePersonDept" value="测试部门" />
+  <button onclick="testUpdateSeat()">更新工位</button>
+
+  <div id="writeTestResult"></div>
+</div>
+
+<div class="test-section">
+  <h2>4. 完整数据流测试</h2>
+  <p>这将测试完整的创建→更新→验证流程</p>
+  <button onclick="testCompleteFlow()">运行完整测试</button>
+  <div id="flowTestResult"></div>
+</div>
+
+<div class="test-section">
+  <h2>5. 实时日志</h2>
+  <button onclick="clearLogs()">清空日志</button>
+  <div id="logs"></div>
+</div>
+
+<script src="https://cdn.socket.io/4.7.0/socket.io.min.js"></script>
+<script>
+let socket = null;
+let apiBase, wsUrl, floorId;
+
+function getConfig() {
+  apiBase = document.getElementById('apiBase').value;
+  wsUrl = document.getElementById('wsUrl').value;
+  floorId = document.getElementById('floorId').value;
+}
+
+function log(message, type = 'info') {
+  const logsDiv = document.getElementById('logs');
+  const timestamp = new Date().toLocaleTimeString();
+  const div = document.createElement('div');
+  div.className = `status ${type}`;
+  div.textContent = `[${timestamp}] ${message}`;
+  logsDiv.insertBefore(div, logsDiv.firstChild);
+}
+
+function showResult(containerId, message, type = 'info') {
+  const container = document.getElementById(containerId);
+  container.innerHTML = `<div class="status ${type}">${message}</div>`;
+}
+
+// ==================== API Tests ====================
+
+async function testHealth() {
+  getConfig();
+  log('测试健康检查...', 'info');
+  try {
+    const response = await fetch(`${apiBase.replace('/api', '')}/health`);
+    const data = await response.json();
+    log(`✓ 健康检查成功: ${JSON.stringify(data)}`, 'success');
+    showResult('apiTestResult', `✓ 成功\n\n响应: ${JSON.stringify(data, null, 2)}`, 'success');
+  } catch (error) {
+    log(`✗ 健康检查失败: ${error.message}`, 'error');
+    showResult('apiTestResult', `✗ 失败\n\n错误: ${error.message}`, 'error');
+  }
+}
+
+async function testGetFloorData() {
+  getConfig();
+  log('获取楼层数据...', 'info');
+  try {
+    const response = await fetch(`${apiBase}/floors/${floorId}`);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+    log(`✓ 楼层数据获取成功: ${data.data.zones.length} 个区域, ${data.data.seats.length} 个工位`, 'success');
+    showResult('apiTestResult',
+      `✓ 成功\n\n区域数: ${data.data.zones.length}\n工位数: ${data.data.seats.length}\n\n示例数据:\n${JSON.stringify(data.data.zones[0], null, 2)}`,
+      'success'
+    );
+  } catch (error) {
+    log(`✗ 楼层数据获取失败: ${error.message}`, 'error');
+    showResult('apiTestResult', `✗ 失败\n\n错误: ${error.message}\n\n请检查:\n1. API Base URL 是否正确\n2. 服务器是否运行\n3. Floor ID 是否存在`, 'error');
+  }
+}
+
+async function testGetZones() {
+  getConfig();
+  log('获取区域列表...', 'info');
+  try {
+    const response = await fetch(`${apiBase}/floors/${floorId}/zones`);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+    log(`✓ 获取区域成功: ${data.data.length} 个区域`, 'success');
+    showResult('apiTestResult',
+      `✓ 成功\n\n区域数: ${data.data.length}\n\n区域列表:\n${data.data.map(z => `- ${z.name} (${z.code}) - ID: ${z._id}`).join('\n')}`,
+      'success'
+    );
+  } catch (error) {
+    log(`✗ 获取区域失败: ${error.message}`, 'error');
+    showResult('apiTestResult', `✗ 失败\n\n错误: ${error.message}`, 'error');
+  }
+}
+
+async function testGetSeats() {
+  getConfig();
+  log('获取工位列表...', 'info');
+  try {
+    const response = await fetch(`${apiBase}/floors/${floorId}/seats`);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+    log(`✓ 获取工位成功: ${data.data.seats.length} 个工位`, 'success');
+    showResult('apiTestResult',
+      `✓ 成功\n\n工位数: ${data.data.seats.length}\n\n前 5 个工位:\n${JSON.stringify(data.data.seats.slice(0, 5), null, 2)}`,
+      'success'
+    );
+  } catch (error) {
+    log(`✗ 获取工位失败: ${error.message}`, 'error');
+    showResult('apiTestResult', `✗ 失败\n\n错误: ${error.message}`, 'error');
+  }
+}
+
+// ==================== WebSocket Tests ====================
+
+function connectWebSocket() {
+  getConfig();
+  log('正在连接 WebSocket...', 'info');
+
+  socket = io(wsUrl, {
+    transports: ['websocket', 'polling'],
+    reconnection: true
+  });
+
+  socket.on('connect', () => {
+    log(`✓ WebSocket 已连接: ${socket.id}`, 'success');
+    showResult('wsTestResult', `✓ 已连接\n\nSocket ID: ${socket.id}`, 'success');
+    document.getElementById('wsConnectBtn').disabled = true;
+    document.getElementById('wsDisconnectBtn').disabled = false;
+    document.getElementById('wsSubscribeBtn').disabled = false;
+  });
+
+  socket.on('disconnect', () => {
+    log('WebSocket 已断开', 'warn');
+    showResult('wsTestResult', '✗ 已断开', 'warn');
+    document.getElementById('wsConnectBtn').disabled = false;
+    document.getElementById('wsDisconnectBtn').disabled = true;
+    document.getElementById('wsSubscribeBtn').disabled = true;
+    document.getElementById('wsSyncBtn').disabled = true;
+  });
+
+  socket.on('sync:initial', (data) => {
+    log(`✓ 收到初始数据: ${data.zones.length} 个区域, ${data.seats.length} 个工位`, 'success');
+    showResult('wsTestResult',
+      `✓ 初始数据已接收\n\n区域数: ${data.zones.length}\n工位数: ${data.seats.length}\n时间戳: ${new Date(data.timestamp).toLocaleString()}`,
+      'success'
+    );
+    document.getElementById('wsSyncBtn').disabled = false;
+  });
+
+  socket.on('sync:incremental', (data) => {
+    log(`✓ 收到增量数据: ${data.changes.zones.length} 个区域, ${data.changes.seats.length} 个工位`, 'success');
+    showResult('wsTestResult',
+      `✓ 增量数据已接收\n\n变更区域: ${data.changes.zones.length}\n变更工位: ${data.changes.seats.length}`,
+      'info'
+    );
+  });
+
+  socket.on('zone:updated', ({ data }) => {
+    log(`✓ 实时更新: 区域 "${data.name}" 已更新`, 'success');
+  });
+
+  socket.on('seat:updated', ({ data }) => {
+    log(`✓ 实时更新: 工位 ${data.seatNo || '(无编号)'} 已更新`, 'success');
+  });
+
+  socket.on('error', ({ message, error }) => {
+    log(`✗ WebSocket 错误: ${message}`, 'error');
+    showResult('wsTestResult', `✗ 错误\n\n${message}\n${error}`, 'error');
+  });
+}
+
+function disconnectWebSocket() {
+  if (socket) {
+    socket.disconnect();
+    socket = null;
+    log('已主动断开 WebSocket', 'info');
+  }
+}
+
+function subscribeFloor() {
+  getConfig();
+  if (!socket || !socket.connected) {
+    showResult('wsTestResult', '✗ WebSocket 未连接', 'error');
+    return;
+  }
+
+  log(`订阅楼层: ${floorId}`, 'info');
+  socket.emit('subscribe:floor', floorId);
+}
+
+function requestSync() {
+  if (!socket || !socket.connected) {
+    showResult('wsTestResult', '✗ WebSocket 未连接', 'error');
+    return;
+  }
+
+  log('请求增量同步...', 'info');
+  socket.emit('sync:request', {
+    floorId,
+    lastSyncTime: Date.now() - 3600000, // 1 小时前
+    clientVersions: { zones: {}, seats: {} }
+  });
+}
+
+// ==================== Write Tests ====================
+
+async function testCreateZone() {
+  getConfig();
+  const name = document.getElementById('testZoneName').value;
+  const code = document.getElementById('testZoneCode').value;
+
+  log(`创建区域: ${name} (${code})`, 'info');
+
+  try {
+    const response = await fetch(`${apiBase}/floors/${floorId}/zones`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name,
+        code,
+        x: 50,
+        y: 50,
+        width: 300,
+        height: 400,
+        count: 10,
+        rows: 2,
+        cols: 5,
+        order: 'row',
+        color: '#6366f1'
+      })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || `HTTP ${response.status}`);
+    }
+
+    const data = await response.json();
+    log(`✓ 区域创建成功: ${data.data.zone._id}`, 'success');
+    showResult('writeTestResult',
+      `✓ 创建成功\n\n区域 ID: ${data.data.zone._id}\n版本号: ${data.data.zone.version}\n\n完整数据:\n${JSON.stringify(data.data.zone, null, 2)}`,
+      'success'
+    );
+
+    // 自动填充到更新表单
+    document.getElementById('updateZoneId').value = data.data.zone._id;
+  } catch (error) {
+    log(`✗ 区域创建失败: ${error.message}`, 'error');
+    showResult('writeTestResult', `✗ 失败\n\n错误: ${error.message}`, 'error');
+  }
+}
+
+async function testUpdateZone() {
+  getConfig();
+  const zoneId = document.getElementById('updateZoneId').value;
+  const name = document.getElementById('updateZoneName').value;
+
+  if (!zoneId) {
+    showResult('writeTestResult', '✗ 请先输入区域 ID', 'error');
+    return;
+  }
+
+  log(`更新区域: ${zoneId} -> ${name}`, 'info');
+
+  try {
+    const response = await fetch(`${apiBase}/floors/${floorId}/zones/${zoneId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name,
+        rebuildSeats: false
+      })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || `HTTP ${response.status}`);
+    }
+
+    const data = await response.json();
+    log(`✓ 区域更新成功: 版本 ${data.data.zone.version}`, 'success');
+    showResult('writeTestResult',
+      `✓ 更新成功\n\n新版本号: ${data.data.zone.version}\n\n完整数据:\n${JSON.stringify(data.data.zone, null, 2)}`,
+      'success'
+    );
+  } catch (error) {
+    log(`✗ 区域更新失败: ${error.message}`, 'error');
+    showResult('writeTestResult', `✗ 失败\n\n错误: ${error.message}`, 'error');
+  }
+}
+
+async function testUpdateSeat() {
+  getConfig();
+  const seatId = document.getElementById('updateSeatId').value;
+  const name = document.getElementById('updatePersonName').value;
+  const dept = document.getElementById('updatePersonDept').value;
+
+  if (!seatId) {
+    showResult('writeTestResult', '✗ 请先输入工位 ID', 'error');
+    return;
+  }
+
+  log(`更新工位: ${seatId}`, 'info');
+
+  try {
+    const response = await fetch(`${apiBase}/floors/${floorId}/seats/${seatId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        person: { name, dept }
+      })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || `HTTP ${response.status}`);
+    }
+
+    const data = await response.json();
+    log(`✓ 工位更新成功: 版本 ${data.data.version}`, 'success');
+    showResult('writeTestResult',
+      `✓ 更新成功\n\n新版本号: ${data.data.version}\n\n完整数据:\n${JSON.stringify(data.data, null, 2)}`,
+      'success'
+    );
+  } catch (error) {
+    log(`✗ 工位更新失败: ${error.message}`, 'error');
+    showResult('writeTestResult', `✗ 失败\n\n错误: ${error.message}`, 'error');
+  }
+}
+
+// ==================== Complete Flow Test ====================
+
+async function testCompleteFlow() {
+  getConfig();
+  const resultDiv = document.getElementById('flowTestResult');
+  resultDiv.innerHTML = '<div class="status info">正在运行完整测试...</div>';
+
+  const results = [];
+
+  try {
+    // 1. 创建区域
+    results.push('步骤 1: 创建测试区域...');
+    const createResponse = await fetch(`${apiBase}/floors/${floorId}/zones`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: '完整测试区域',
+        code: 'FULLTEST',
+        x: 100, y: 100, width: 300, height: 400,
+        count: 5, rows: 1, cols: 5, order: 'row', color: '#10b981'
+      })
+    });
+    const createData = await createResponse.json();
+    const zoneId = createData.data.zone._id;
+    results.push(`✓ 区域已创建: ${zoneId}`);
+
+    // 2. 读取区域
+    results.push('\n步骤 2: 读取创建的区域...');
+    const readResponse = await fetch(`${apiBase}/floors/${floorId}/zones`);
+    const readData = await readResponse.json();
+    const found = readData.data.find(z => z._id === zoneId);
+    if (found) {
+      results.push(`✓ 区域已找到: ${found.name}`);
+    } else {
+      throw new Error('创建的区域未找到！');
+    }
+
+    // 3. 更新区域
+    results.push('\n步骤 3: 更新区域...');
+    const updateResponse = await fetch(`${apiBase}/floors/${floorId}/zones/${zoneId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: '完整测试区域(已更新)', rebuildSeats: false })
+    });
+    const updateData = await updateResponse.json();
+    results.push(`✓ 区域已更新: 版本 ${updateData.data.zone.version}`);
+
+    // 4. 验证更新
+    results.push('\n步骤 4: 验证更新...');
+    const verifyResponse = await fetch(`${apiBase}/floors/${floorId}/zones`);
+    const verifyData = await verifyResponse.json();
+    const updated = verifyData.data.find(z => z._id === zoneId);
+    if (updated && updated.name === '完整测试区域(已更新)') {
+      results.push(`✓ 更新已确认: ${updated.name}`);
+    } else {
+      throw new Error('更新未生效！');
+    }
+
+    // 5. 获取工位
+    results.push('\n步骤 5: 获取区域的工位...');
+    const seatsResponse = await fetch(`${apiBase}/floors/${floorId}/seats`);
+    const seatsData = await seatsResponse.json();
+    const zoneSeats = seatsData.data.seats.filter(s => s.zoneId === zoneId);
+    results.push(`✓ 找到 ${zoneSeats.length} 个工位`);
+
+    if (zoneSeats.length > 0) {
+      // 6. 更新工位
+      const seatId = zoneSeats[0]._id;
+      results.push(`\n步骤 6: 更新工位 ${seatId}...`);
+      const seatUpdateResponse = await fetch(`${apiBase}/floors/${floorId}/seats/${seatId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          person: { name: '完整测试用户', dept: '测试部门' }
+        })
+      });
+      const seatUpdateData = await seatUpdateResponse.json();
+      results.push(`✓ 工位已更新: 版本 ${seatUpdateData.data.version}`);
+    }
+
+    // 7. 删除区域
+    results.push('\n步骤 7: 清理测试数据...');
+    const deleteResponse = await fetch(`${apiBase}/floors/${floorId}/zones/${zoneId}`, {
+      method: 'DELETE'
+    });
+    await deleteResponse.json();
+    results.push('✓ 测试区域已删除');
+
+    results.push('\n========================================');
+    results.push('✓✓✓ 所有测试通过！数据同步正常工作！');
+    results.push('========================================');
+
+    resultDiv.innerHTML = `<div class="status success">${results.join('\n')}</div>`;
+    log('✓ 完整流程测试通过', 'success');
+
+  } catch (error) {
+    results.push(`\n✗ 测试失败: ${error.message}`);
+    resultDiv.innerHTML = `<div class="status error">${results.join('\n')}</div>`;
+    log(`✗ 完整流程测试失败: ${error.message}`, 'error');
+  }
+}
+
+function clearLogs() {
+  document.getElementById('logs').innerHTML = '';
+  log('日志已清空', 'info');
+}
+
+// 初始化
+log('调试工具已加载', 'success');
+log('请先配置 API 地址，然后开始测试', 'info');
+</script>
+
+</body>
+</html>
